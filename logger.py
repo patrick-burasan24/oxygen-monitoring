@@ -16,6 +16,10 @@ async def start_logging():
         return
 
     con = db.initialize_db(DATABASE_PATH)
+    if con is None:
+        print("Couldn't establish a connection to the database.")
+        return
+    
     client = AsyncModbusTcpClient(host=SENSOR_IP, port=SENSOR_PORT, framer=FramerType.RTU, timeout=10)
     await client.connect()
 
