@@ -16,9 +16,11 @@ def initialize_db(db_path):
     return con
 
 def add_reading(con, o2, temp, press):
-    con.execute(f""" INSERT INTO readings(o2, temp, press)
-                VALUES (?, ?, ?);
-                """, (o2, temp, press))
+    local_now = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    con.execute(""" INSERT INTO readings(o2, temp, press, timestamp)
+                VALUES (?, ?, ?, ?);
+                """, (o2, temp, press, local_now))
     con.commit()
 
 def summary(con):
