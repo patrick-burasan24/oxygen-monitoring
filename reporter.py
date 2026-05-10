@@ -7,6 +7,7 @@ import database as db
 import argparse
 import visualizer
 import shutil
+from pathlib import Path
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="O2 Sensor Report Wizard")
@@ -25,7 +26,8 @@ if __name__ == "__main__":
 
     print(f"Fetching data for {target_date}...")
 
-    load_dotenv("./data.env")
+    env_path = Path(".env")
+    load_dotenv(env_path)
     DATABASE_PATH = os.getenv("DATABASE_PATH")
     if DATABASE_PATH is None:
         print("Couldn't find database path. Exiting here.")
@@ -42,23 +44,27 @@ if __name__ == "__main__":
     template = env.get_template("report.html")
     display_date = dt.datetime.strptime(target_date, "%Y-%m-%d").strftime("%B %d, %Y")
 
-    os.makedirs("./reports/", exist_ok=True)
-    os.makedirs("./img/", exist_ok=True)
+    reports_path = Path("reports")
+    img_path = Path("img")
+    os.makedirs(reports_path, exist_ok=True)
+    os.makedirs(img_path, exist_ok=True)
+    
     pdf_filename = f"Sensor_Parameter_Report_{target_date}.pdf"
-    if os.path.exists(f"./img/{pdf_filename}/"):
-        shutil.rmtree(f"./img/{pdf_filename}/")
-    os.makedirs(f"./img/{pdf_filename}/", exist_ok=True)
+    if os.path.exists(f"{reports_path}/{pdf_filename}/"):
+        shutil.rmtree(f"{img_path}/{pdf_filename}/")
+    os.makedirs(f"{img_path}/{pdf_filename}/", exist_ok=True)
+    
     visualizer.generate_graph(con, target_date, pdf_filename)
 
     html_string = template.render(
         date_today=display_date,
         stats=daily_stats,
-        o2_graph_path=f"./img/{pdf_filename}/o2_levels.png",
-        temp_graph_path=f"./img/{pdf_filename}/internal_temperature.png",
-        press_graph_path=f"./img/{pdf_filename}/internal_pressure.png",
+        o2_graph_path=f"{img_path}/{pdf_filename}/o2_levels.png",
+        temp_graph_path=f"{img_path}/{pdf_filename}/internal_temperature.png",
+        press_graph_path=f"{img_path}/{pdf_filename}/internal_pressure.png",
     )
 
-    with open(f"./reports/{pdf_filename}", "w+b") as pdf_file:
+    with open(f"{reports_path}/{pdf_filename}", "w+b") as pdf_file:
         pisa.CreatePDF(html_string, dest=pdf_file)
     
     print("Report created successfully. Program has exitted.")
