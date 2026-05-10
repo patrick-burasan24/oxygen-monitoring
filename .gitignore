@@ -1,0 +1,27 @@
+# Virtual Environment
+modbus_env/
+venv/
+env/
+
+*.pdf
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Secret configuration
+.env
+
+# Local data & logs
+*.db
+*.sqlite
+*.log
+reports/
+
+# IDE & System junk
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
