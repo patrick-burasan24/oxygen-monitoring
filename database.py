@@ -53,7 +53,7 @@ def summary(con, target_date):
                         """, (target_date,))
     row = query.fetchone()
 
-    if len(row) == 0:
+    if row[0] is None:
         return None
     return {
         "o2": {"min": round(row[0], 2), "max": round(row[1], 2), "avg": round(row[2], 2)},
@@ -91,3 +91,5 @@ if __name__ == "__main__":
     assert(DATABASE_PATH is not None)
 
     con = initialize_db(DATABASE_PATH)
+
+    add_reading(con, 25.01, 35, 1004)
