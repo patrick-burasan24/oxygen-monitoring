@@ -45,8 +45,9 @@ if __name__ == "__main__":
     os.makedirs("./reports/", exist_ok=True)
     os.makedirs("./img/", exist_ok=True)
     pdf_filename = f"Sensor_Parameter_Report_{target_date}.pdf"
-    shutil.rmtree(f"./img/{pdf_filename}/")
-    os.makedirs(f"./img/{pdf_filename}/", exist_ok=False)
+    if os.path.exists(f"./img/{pdf_filename}/"):
+        shutil.rmtree(f"./img/{pdf_filename}/")
+    os.makedirs(f"./img/{pdf_filename}/", exist_ok=True)
     visualizer.generate_graph(con, target_date, pdf_filename)
 
     html_string = template.render(
@@ -59,3 +60,5 @@ if __name__ == "__main__":
 
     with open(f"./reports/{pdf_filename}", "w+b") as pdf_file:
         pisa.CreatePDF(html_string, dest=pdf_file)
+    
+    print("Report created successfully. Program has exitted.")
