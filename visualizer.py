@@ -52,7 +52,7 @@ def generate_graph(con, target_date, pdf_filename):
 
     plot_parameter(o2_levels, timestamps, "red", "O_2%", pdf_filename, "o2_levels")
     plot_parameter(temperatures, timestamps, "blue", "T", pdf_filename, "internal_temperature")
-    plot_parameter(pressures, timestamps, "red", "P", pdf_filename, "internal_pressure")
+    plot_parameter(pressures, timestamps, "green", "P", pdf_filename, "internal_pressure")
         
 if __name__ == "__main__":
     fig, ax = plt.subplots(figsize=(10, 5))
