@@ -1,15 +1,16 @@
-import asyncio
-from pymodbus.client import AsyncModbusTcpClient
-from pymodbus.framer import FramerType
 import os
+import asyncio
+from pathlib import Path
 from dotenv import load_dotenv
+from pymodbus.framer import FramerType
+from pymodbus.client import AsyncModbusTcpClient
 
-async def monitor_sensor():
+async def monitor_sensor(sensor_ip, sensor_port, device_id):
     """Display the live data from the sensor"""
     # Setup the connection
     client = AsyncModbusTcpClient(
-        host="192.168.0.7",
-        port=502,
+        host=sensor_ip,
+        port=sensor_port,
         framer=FramerType.RTU,
         timeout=10,
     )
@@ -29,7 +30,7 @@ async def monitor_sensor():
             result = await client.read_holding_registers(
                 address=10,
                 count=6,
-                device_id=2,
+                device_id=device_id,
             )
 
             if not result.isError():
@@ -55,26 +56,33 @@ async def monitor_sensor():
             else:
                 print("\nError reading data.")
             await asyncio.sleep(1)
+
     except KeyboardInterrupt:
         print("\nStopping Monitor.")
+
     finally:
         client.close()
 
 if __name__ == "__main__":
-    load_dotenv("./data.env")
+    env_path = Path(".env")
+    load_dotenv(env_path)
     
-    SENSOR_IP = os.getenv("SENSOR_IP")
-    SENSOR_PORT = int(os.getenv("SENSOR_PORT"))
-    DEVICE_ID = int(os.getenv("DEVICE_ID"))
+    sensor_ip = os.getenv("SENSOR_IP")
+    sensor_port = int(os.getenv("SENSOR_PORT"))
+    device_id = int(os.getenv("DEVICE_ID"))
 
-    if SENSOR_IP is None or SENSOR_PORT is None or DEVICE_ID is None:
-        print("Couldn't get sensor details. Exiting here.")
+    if not sensor_ip:
+        print("Couldn't get sensor ip. Exiting here.")
         exit(1)
     
-    assert(SENSOR_IP is not None)
-    assert(SENSOR_PORT is not None)
-    assert(DEVICE_ID is not None)
+    if not sensor_port:
+        print("Couldn't get sensor port. Exiting here.")
+        exit(1)
+
+    if not device_id:
+        print("Couldn't get device id. Exiting here.")
+        exit(1)
 
     asyncio.run(
-        monitor_sensor()
+        monitor_sensor(sensor_ip, sensor_port, device_id)
     )
