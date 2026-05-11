@@ -207,12 +207,16 @@ class SettingsFrame(ctk.CTkFrame):
         self.device_id.configure(placeholder_text="(e.g. 1)", placeholder_text_color="gray")
         self.device_id._deactivate_placeholder()
     
-    def change_theme(parent, new_theme):
+    def change_theme(self, new_theme):
         """Modifies the .env key to reflect the new theme preference."""
         if not valid_parameter(new_theme):
             return
 
+        curtain_frame = ctk.CTkFrame(self)
+        curtain_frame.place(relwidth=1, relheight=1)
+        self.update_idletasks()
         ctk.set_appearance_mode(new_theme)
+        self.after(200, curtain_frame.destroy)
 
         env_path = Path(".env")
         set_key(dotenv_path=env_path, key_to_set="THEME_PREFERENCE", value_to_set=new_theme)
