@@ -9,6 +9,16 @@ import visualizer
 import shutil
 from pathlib import Path
 
+def generate_daily_report(target_date, output_path):
+    if not target_date:
+        print("Target date cannot be empty.")
+        return False
+
+    if not output_path:
+        pass
+    
+    pass
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="O2 Sensor Report Wizard")
     parser.add_argument(
