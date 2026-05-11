@@ -1,112 +1,141 @@
-import customtkinter as ctk
-from tkcalendar import DateEntry
 from pathlib import Path
-from tkinter import filedialog
-from dotenv import set_key, load_dotenv
+
+import customtkinter as ctk
+from dotenv import load_dotenv, set_key
 import os
-import reporter
 
-ctk.set_appearance_mode("Dark")
-ctk.set_default_color_theme("blue")
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("dark-blue")
 
-class O2Dashboard(ctk.CTk):
+
+class O2DashboardApp(ctk.CTk):
 
     def __init__(self):
         super().__init__()
         
-        # Window settings
-        self.title("O2 Sensor Control Panel")
-        self.geometry("400x300")
+        self.title("Oxygen Monitoring System")
+        self.geometry("650x400")
+
+        self.frames = {}
+
+        for PageClass in (MainMenuFrame, MonitorFrame, SettingsFrame):
+            page_name = PageClass.__name__
+            frame = PageClass(parent=self, controller=self)
+            self.frames[page_name] = frame
+
+            frame.grid(row=0, column=0, sticky="nsew")
+        
+        self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-        # UI elements
-        self.lbl_title = ctk.CTkLabel(self, text="Oxygen Reporter", font=ctk.CTkFont(size=24, weight="bold"))
-        self.lbl_title.grid(row=0, column=0, padx=20, pady=20)
+        self.check_initial_setup()
+    
+    def show_frame(self, page_name):
+        """Brings the requested page to the top."""
+        frame = self.frames[page_name]
+        frame.tkraise()
+    
+    def check_initial_setup(self):
+        """If essential .env variables are missing, for them to Settings."""
+        env_path = Path(".env")
+        load_dotenv(dotenv_path=env_path)
+        sensor_ip = os.getenv("SENSOR_IP")
+        print(sensor_ip)
+        if not sensor_ip:
+            self.show_frame("SettingsFrame")
+        else:
+            self.show_frame("MainMenuFrame")
+
+
+class MainMenuFrame(ctk.CTkFrame):
+
+    def __init__(self, parent, controller):
+        super().__init__(parent)
+        self.controller = controller
+
+        lbl_title = ctk.CTkLabel(self, text="Main Dashboard", font=("Arial", 24, "bold"))
+        lbl_title.pack(pady=40)
+
+        btn_monitor = ctk.CTkButton(self, text="Watch Monitor", command=lambda: controller.show_frame("MonitorFrame"))
+        btn_monitor.pack(pady=10)
+
+        btn_logger = ctk.CTkButton(self, text="Start Logging")
+        btn_logger.pack(pady=10)
+
+        # Reporter logic will go here
+
+        btn_settings = ctk.CTkButton(self, text="Settings", command=lambda: controller.show_frame("SettingsFrame"))
+        btn_settings.pack(pady=10)
+
+
+class SettingsFrame(ctk.CTkFrame):
+
+    def __init__(self, parent, controller):
+        super().__init__(parent)
+        self.controller = controller
+
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(3, weight=1)
         
-        # Calendar plug-in for generating dates
-        self.entry_date = DateEntry(
-            self,
-            width=20,
-            background="#1f538d",
-            foreground="white",
-            bordercolor="#2b2b2b",
-            headersbackground="#2b2b2b", 
-            headersforeground="white",
-            selectbackground="#1f538d",
-            selectforeground="white",
-            normalbackground="#343638",
-            normalforeground="white",
-            bottombackground="#343638",
-            date_pattern='yyyy-mm-dd'
-        )
-        self.entry_date.grid(row=1, column=0, padx=20, pady=10)
+        lbl_title = ctk.CTkLabel(self, text="Settings & Configurations", font=("Arial", 24, "bold"))
+        lbl_title.grid(row=0, column=1, pady=40, columnspan=2)
 
-        self.btn_generate = ctk.CTkButton(self, text="Generate PDF", command=self.trigger_report)
-        self.btn_generate.grid(row=2, column=0, padx=20, pady=20)
+        lbl_sensor_ip = ctk.CTkLabel(self, text="Sensor IP ")
+        lbl_sensor_ip.grid(row=1, column=1, pady=10)
 
-        self.lbl_status = ctk.CTkLabel(self, text="Ready.", text_color="gray")
-        self.lbl_status.grid(row=3, column=0, padx=20, pady=20)
+        self.entry_ip = ctk.CTkEntry(self, placeholder_text="(e.g. 192.168.0.7)", width=250)
+        self.entry_ip.grid(row=1, column=2, pady=10)
 
-        self.btn_settings = ctk.CTkButton(
-            self,
-            text="Change Save Folder",
-            fg_color="transparent",
-            command=self.set_default_directory,
-            border_width=1,
-            text_color="gray",
-        )
-        self.btn_settings.grid(row=4, column=0, padx=20, pady=(0,20))
+        lbl_sensor_port = ctk.CTkLabel(self, text="Sensor Port ")
+        lbl_sensor_port.grid(row=2, column=1, pady=10)
 
-    def trigger_report(self):
-        target_date = self.entry_date.get()
+        self.entry_port = ctk.CTkEntry(self, placeholder_text="(e.g. 502)", width=250)
+        self.entry_port.grid(row=2, column=2, pady=10)
 
-        if not target_date:
-            self.lbl_status.configure(text="Error: Date field cannot be empty.", text_color="#d32f2f")
+        lbl_device_id = ctk.CTkLabel(self, text="Device ID ")
+        lbl_device_id.grid(row=3, column=1, pady=10)
+
+        self.device_id = ctk.CTkEntry(self, placeholder_text="(e.g. 1)", width=250)
+        self.device_id.grid(row=3, column=2, pady=10)
+
+        btn_save = ctk.CTkButton(self, text="Save Preferences", command=self.save_settings)
+        btn_save.grid(row=5, column=1, pady=10, columnspan=2)
+
+    def save_settings(self):
+        """Save settings for new session. Cannot save unless all fields are populated."""
+        entry_ip = self.entry_ip.get()
+        entry_port = self.entry_port.get()
+        device_id = self.device_id.get()
+
+        # TODO Enforce not empty fields
+        if not entry_ip:
+            return
+    
+        if not entry_port:
+            return
+        
+        if not device_id:
             return
 
-        load_dotenv(override=True)
-        saved_dir = os.getenv("DEFAULT_OUTPUT_DIR")
+        env_path = Path(".env")
+        set_key(dotenv_path=env_path, key_to_set="SENSOR_IP", value_to_set=entry_ip)
+        set_key(dotenv_path=env_path, key_to_set="SENSOR_PORT", value_to_set=entry_port)
+        set_key(dotenv_path=env_path, key_to_set="DEVICE_ID", value_to_set=device_id)
+        self.controller.show_frame("MainMenuFrame")
 
-        if not saved_dir:
-            self.lbl_status.configure(text="First run: Please choose a save folder...", text_color="#fbc02d")
-            saved_dir = filedialog.askdirectory(title="First Time Setup: Choose Default Save Directory")
 
-            if not saved_dir:
-                self.lbl_status.configure(text="Report cancelled.", text_color="gray")
-                return
-            
-            set_key(".env", "DEFAULT_OUTPUT_DIR", saved_dir)
+class MonitorFrame(ctk.CTkFrame):
 
-        print(saved_dir)
+    def __init__(self, parent, controller):
+        super().__init__(parent)
+        self.controller = controller
 
-        final_path = filedialog.asksaveasfilename(
-            initialdir=saved_dir,
-            defaultextension=".pdf",
-            filetypes=[("PDF Documents", "*.pdf"), ("All Files", "*.*")],
-            initialfile=f"Sensor_Parameter_Report_{target_date}.pdf",
-            title="Choose where to save your report",
-        )
+        lbl_title = ctk.CTkLabel(self, text="Live O2 Monitor Dashboard", font=("Arial", 24, "bold"))
+        lbl_title.pack(pady=40)
 
-        if not final_path:
-            self.lbl_status.configure(text="Report cancelled.", text_color="gray")
-            return
-
-        self.lbl_status.configure(text=f"Generating report for {target_date} to {saved_dir}...")
-        
-        # Reporter logic here...
-
-        self.after(2000, lambda: self.lbl_status.configure(text="Report saved successfully!", text_color="#388e3c"))
-
-    def set_default_directory(self):
-        chosen_folder = filedialog.askdirectory(title="Choose Default Save Folder")
-
-        if not chosen_folder:
-            return
-        
-        set_key(".env", "DEFAULT_OUTPUT_DIR", chosen_folder)
-
-        self.lbl_status.configure(text=f"Default changed to: {chosen_folder}")
+        btn_back = ctk.CTkButton(self, text="Back to Menu", command=lambda: controller.show_frame("MainMenuFrame"))
+        btn_back.pack(pady=10)
 
 if __name__ == "__main__":
-    app = O2Dashboard()
+    app = O2DashboardApp()
     app.mainloop()
