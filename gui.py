@@ -1,8 +1,7 @@
-from pathlib import Path
-
-import customtkinter as ctk
-from dotenv import load_dotenv, set_key
 import os
+import customtkinter as ctk
+from pathlib import Path
+from dotenv import load_dotenv, set_key
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
@@ -12,7 +11,7 @@ class O2DashboardApp(ctk.CTk):
 
     def __init__(self):
         super().__init__()
-        
+
         self.title("Oxygen Monitoring System")
         self.geometry("650x400")
 
@@ -39,8 +38,9 @@ class O2DashboardApp(ctk.CTk):
         """If essential .env variables are missing, for them to Settings."""
         env_path = Path(".env")
         load_dotenv(dotenv_path=env_path)
+        
         sensor_ip = os.getenv("SENSOR_IP")
-        print(sensor_ip)
+
         if not sensor_ip:
             self.show_frame("SettingsFrame")
         else:
@@ -74,6 +74,13 @@ class SettingsFrame(ctk.CTkFrame):
         super().__init__(parent)
         self.controller = controller
 
+        env_path = Path(".env")
+        load_dotenv(env_path)
+
+        sensor_ip = os.getenv("SENSOR_IP")
+        sensor_port = os.getenv("SENSOR_PORT")
+        device_id = os.getenv("DEVICE_ID")
+
         self.columnconfigure(0, weight=1)
         self.columnconfigure(3, weight=1)
         
@@ -83,23 +90,37 @@ class SettingsFrame(ctk.CTkFrame):
         lbl_sensor_ip = ctk.CTkLabel(self, text="Sensor IP ")
         lbl_sensor_ip.grid(row=1, column=1, pady=10)
 
-        self.entry_ip = ctk.CTkEntry(self, placeholder_text="(e.g. 192.168.0.7)", width=250)
+        self.entry_ip = ctk.CTkEntry(self, placeholder_text="(e.g. 192.168.0.7)", width=350)
+        if sensor_ip:
+            self.entry_ip.insert(0, sensor_ip)
         self.entry_ip.grid(row=1, column=2, pady=10)
 
         lbl_sensor_port = ctk.CTkLabel(self, text="Sensor Port ")
         lbl_sensor_port.grid(row=2, column=1, pady=10)
 
-        self.entry_port = ctk.CTkEntry(self, placeholder_text="(e.g. 502)", width=250)
+        self.entry_port = ctk.CTkEntry(self, placeholder_text="(e.g. 502)", width=350)
+        if sensor_port:
+            self.entry_port.insert(0, sensor_port)
         self.entry_port.grid(row=2, column=2, pady=10)
 
         lbl_device_id = ctk.CTkLabel(self, text="Device ID ")
         lbl_device_id.grid(row=3, column=1, pady=10)
 
-        self.device_id = ctk.CTkEntry(self, placeholder_text="(e.g. 1)", width=250)
+        self.device_id = ctk.CTkEntry(self, placeholder_text="(e.g. 1)", width=350)
+        if device_id:
+            self.device_id.insert(0,device_id)
         self.device_id.grid(row=3, column=2, pady=10)
 
-        btn_save = ctk.CTkButton(self, text="Save Preferences", command=self.save_settings)
-        btn_save.grid(row=5, column=1, pady=10, columnspan=2)
+        button_frame = ctk.CTkFrame(self, fg_color="transparent")
+        button_frame.grid(row=5, column=1, pady=20, columnspan=2)
+
+        btn_save = ctk.CTkButton(button_frame, text="Save Preferences", command=self.save_settings)
+        btn_save.grid(row=5, column=1, padx=10, pady=10, sticky="e")
+
+        btn_cancel = ctk.CTkButton(button_frame, text="Cancel", command=self.cancel)
+        btn_cancel.grid(row=5, column=2, padx=10, pady=10, sticky="w")
+
+        #TODO Add a theme toggle (for light, dark or system)
 
     def save_settings(self):
         """Save settings for new session. Cannot save unless all fields are populated."""
@@ -107,20 +128,31 @@ class SettingsFrame(ctk.CTkFrame):
         entry_port = self.entry_port.get()
         device_id = self.device_id.get()
 
-        # TODO Enforce not empty fields
-        if not entry_ip:
-            return
+        has_errors = False
+
+        if entry_ip == "":
+            self.entry_ip.configure(placeholder_text="MISSING: Enter Sensor IP (e.g. 192.168.0.7)", placeholder_text_color="#ff4c4c")
+            has_errors = True
     
-        if not entry_port:
-            return
+        if entry_port == "":
+            self.entry_port.configure(placeholder_text="MISSING: Enter Sensor Port (e.g. 502)", placeholder_text_color="#ff4c4c")
+            has_errors = True
         
-        if not device_id:
+        if device_id == "":
+            self.device_id.configure(placeholder_text="MISSING: Enter Device ID (e.g. 1)", placeholder_text_color="#ff4c4c")
+            has_errors = True
+        
+        if has_errors:
             return
 
         env_path = Path(".env")
         set_key(dotenv_path=env_path, key_to_set="SENSOR_IP", value_to_set=entry_ip)
         set_key(dotenv_path=env_path, key_to_set="SENSOR_PORT", value_to_set=entry_port)
         set_key(dotenv_path=env_path, key_to_set="DEVICE_ID", value_to_set=device_id)
+        self.controller.show_frame("MainMenuFrame")
+    
+    def cancel(self):
+        """Returns user to the MainMenuFrame"""
         self.controller.show_frame("MainMenuFrame")
 
 
