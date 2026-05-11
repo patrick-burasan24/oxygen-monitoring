@@ -1,16 +1,15 @@
+import os
 import asyncio
-
 import pymodbus.client as ModbusClient
+from dotenv import load_dotenv
+from pathlib import Path
 from pymodbus import (
     FramerType,
     ModbusException,
     pymodbus_apply_logging_config,
 )
 
-import os
-from dotenv import load_dotenv
-
-async def run_async_simple_client(comm, host, port, framer=FramerType.RTU):
+async def run_async_simple_client(comm, sensor_ip, sensor_port, device_id, framer=FramerType.RTU):
     """Run async client"""
     # Activate debugging
     pymodbus_apply_logging_config("DEBUG")
@@ -19,8 +18,8 @@ async def run_async_simple_client(comm, host, port, framer=FramerType.RTU):
     client: ModbusClient.ModbusBaseClient
     if comm == "tcp":
         client = ModbusClient.AsyncModbusTcpClient(
-            host=host,
-            port=port,
+            host=sensor_ip,
+            port=sensor_port,
             framer=framer,
             timeout=10,
             retries=3,
@@ -28,7 +27,7 @@ async def run_async_simple_client(comm, host, port, framer=FramerType.RTU):
         )
     elif comm == "udp":
         client = ModbusClient.AsyncModbusUdpClient(
-            port=port,
+            port=sensor_port,
             framer=framer,
             timeout=10,
             retries=3,
@@ -36,7 +35,7 @@ async def run_async_simple_client(comm, host, port, framer=FramerType.RTU):
         )
     elif comm == "serial":
         client = ModbusClient.AsyncModbusSerialClient(
-            port=port,
+            port=sensor_port,
             framer=framer,
             timeout=10,
             retries=3,
@@ -52,13 +51,19 @@ async def run_async_simple_client(comm, host, port, framer=FramerType.RTU):
     
     print("Connecting to server...")
     await client.connect()
+    
     # Test client is connected
-    assert client.connected
+    if not client.connected:
+        print("Failed to connect.")
+        return
 
-    print("Get and verify data")
+    print("----- GET AND VERIFY DATA -----")
+
+    sensor_parameters = {}
+
     try:
         for i in range(0, 60, 2):
-            result = await client.read_holding_registers(address=i, count=2, device_id=2)
+            result = await client.read_holding_registers(address=i, count=2, device_id=device_id)
 
             if result.isError():
                 print(f"Modbus Device Returned an Error: {result}")
@@ -66,11 +71,16 @@ async def run_async_simple_client(comm, host, port, framer=FramerType.RTU):
                 sensor_value = client.convert_from_registers(
                     result.registers,
                     data_type=client.DATATYPE.FLOAT32,
-                    word_order='big',
+                    word_order="big",
                 )
                 
+                # The technical documentation stipulated that data from the sensor will always
+                # reside in this interval.
                 if -100 < sensor_value < 10000:
                     print(f"Address {i:02d} -> Raw {result.registers} -> Decoded {sensor_value:.2f}")
+                    # We may assume that no real, useful value is zero
+                    if sensor_value != 0.0:
+                        sensor_parameters[i] = sensor_value
                         
     except ModbusException as exc:
         print(f"Network or Modbus crash occurred: {exc}")
@@ -79,24 +89,47 @@ async def run_async_simple_client(comm, host, port, framer=FramerType.RTU):
         print(f"An unknown error occurred: {exc}")
         
     finally:
-        print("Closing connection...")
+        print("\nThe decoded sensor values are (Address:Value)")
+
+        # In order to assess which values are indeed the corresponding sensor
+        # parameters that we need, one must check with the physical sensor
+        # and link the data shown with the data found using this tool.
+        # For the SINTESY S210.smartSensor the data comes int 6
+        # FLOAT32 which, if put back together, generate three floating
+        # point numbers, namely the recorded oxygen concentration,
+        # the internal sensor temperature, and, lastly, the internal
+        # sensor pressure. But other junk data may reside in what the
+        # diagnostics tool finds and we may not guarantee that there
+        # will be exactly three numbers at consecutive addresses, therefore
+        # it's recommended to double check with the physical item to
+        # assert the discovered addresses.
+        
+        for address, sensor_value in sensor_parameters.items():
+            print(f"{address} : {sensor_value}")
+            
+        print("\nClosing connection...")
         client.close()
 
 if __name__ == "__main__":
-    load_dotenv("./data.env")
-    
-    SENSOR_IP = os.getenv("SENSOR_IP")
-    SENSOR_PORT = int(os.getenv("SENSOR_PORT"))
-    DEVICE_ID = int(os.getenv("DEVICE_ID"))
+    env_path = Path(".env")
+    load_dotenv(env_path)
+        
+    sensor_ip = os.getenv("SENSOR_IP")
+    sensor_port = int(os.getenv("SENSOR_PORT"))
+    device_id = int(os.getenv("DEVICE_ID"))
 
-    if SENSOR_IP is None or SENSOR_PORT is None or DEVICE_ID is None:
-        print("Couldn't get sensor details. Exiting here.")
+    if not sensor_ip:
+        print("Couldn't get sensor ip. Exiting here.")
         exit(1)
     
-    assert(SENSOR_IP is not None)
-    assert(SENSOR_PORT is not None)
-    assert(DEVICE_ID is not None)
+    if not sensor_port:
+        print("Couldn't get sensor port. Exiting here.")
+        exit(1)
 
+    if not device_id:
+        print("Couldn't get device id. Exiting here.")
+        exit(1)
+    
     asyncio.run(
-        run_async_simple_client("tcp", SENSOR_IP, SENSOR_PORT), debug=True
+        run_async_simple_client("tcp", sensor_ip, sensor_port, device_id), debug=True
     )
