@@ -2,6 +2,7 @@ import os
 import customtkinter as ctk
 from pathlib import Path
 from dotenv import load_dotenv, set_key
+from tkdial import Meter
 
 ctk.set_default_color_theme("dark-blue")
 
@@ -228,11 +229,65 @@ class MonitorFrame(ctk.CTkFrame):
         super().__init__(parent)
         self.controller = controller
 
+        self.columnconfigure(0, weight=3)
+        self.columnconfigure(1, weight=1)
+        self.rowconfigure(0, weight=0)
+        self.rowconfigure(1, weight=1, uniform="group1")
+        self.rowconfigure(2, weight=1, uniform="group1")
+        self.rowconfigure(3, weight=0)
+
         lbl_title = ctk.CTkLabel(self, text="Live O2 Monitor Dashboard", font=("Arial", 24, "bold"))
-        lbl_title.pack(pady=40)
+        lbl_title.grid(row=0, column=0, columnspan=2, pady=10)
+
+        # Temperature frame
+        temp_frame = ctk.CTkFrame(self, corner_radius=15)
+        temp_frame.grid(row=1, column=1, sticky="nesw", padx=20, ipady=20)
+        
+        # Temperature labels
+        lbl_temp_title = ctk.CTkLabel(temp_frame, text="TEMPERATURE", font=("Arial", 14, "bold"))
+        lbl_temp_title.pack(pady=(20, 0), side="top")
+
+        self.lbl_temp_val = ctk.CTkLabel(temp_frame, text="--.-", font=("Arial", 48, "bold"))
+        self.lbl_temp_val.pack(expand=True) # expand=True centers the value vertically
+        
+        lbl_temp_unit = ctk.CTkLabel(temp_frame, text="˚C", font=("Arial", 20))
+        lbl_temp_unit.pack(pady=(0, 20), side="bottom")
+
+        # Pressure frame
+        press_frame = ctk.CTkFrame(self, corner_radius=15)
+        press_frame.grid(row=2, column=1, sticky="nesw", padx=20, ipady=20)
+
+        # Pressure labels
+        lbl_press_title = ctk.CTkLabel(press_frame, text="PRESSURE", font=("Arial", 14, "bold"))
+        lbl_press_title.pack(pady=(20, 0), side="top")
+
+        self.lbl_press_val = ctk.CTkLabel(press_frame, text="----", font=("Arial", 48, "bold"))
+        self.lbl_press_val.pack(expand=True) # expand=True centers the value vertically
+        
+        lbl_press_unit = ctk.CTkLabel(press_frame, text="mbar", font=("Arial", 20))
+        lbl_press_unit.pack(pady=(0, 20), side="bottom")
+
+        # Oxygen Gauge Meter Wrapper
+        oxygen_frame = ctk.CTkFrame(self)
+        oxygen_frame.grid(row=1, column=0, rowspan=2, sticky="nesw")
+        
+        # Oxygen Gauge Meter
+        self.o2_gauge = Meter(
+            oxygen_frame,
+            radius=260,
+            start=0,
+            end=25,
+            major_divisions=5,
+            border_width=0,
+            fg="#f0f0f0",
+            text_color="black",
+            needle_color="#ff4c4c",
+            scale_color="black",
+        )
+        self.o2_gauge.pack(expand=True)
 
         btn_back = ctk.CTkButton(self, text="Back to Menu", command=lambda: controller.show_frame("MainMenuFrame"))
-        btn_back.pack(pady=10)
+        btn_back.grid(row=3, column=0, columnspan=2, pady=20)
 
 if __name__ == "__main__":
     app = O2DashboardApp()
