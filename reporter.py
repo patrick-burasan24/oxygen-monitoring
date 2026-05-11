@@ -1,13 +1,13 @@
 import os
-from dotenv import load_dotenv
-import datetime as dt
-from jinja2 import Environment, FileSystemLoader
-from xhtml2pdf import pisa
-import database as db
-import argparse
-import visualizer
 import shutil
+import visualizer
+import argparse
+import database as db
+import datetime as dt
 from pathlib import Path
+from xhtml2pdf import pisa
+from dotenv import load_dotenv
+from jinja2 import Environment, FileSystemLoader
 
 def generate_daily_report(target_date, output_path):
     if not target_date:

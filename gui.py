@@ -3,14 +3,23 @@ import customtkinter as ctk
 from pathlib import Path
 from dotenv import load_dotenv, set_key
 
-ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
+
+
+def valid_parameter(parameter: str):
+    return parameter and parameter != "" and parameter.strip() !=  ""
 
 
 class O2DashboardApp(ctk.CTk):
 
     def __init__(self):
         super().__init__()
+
+        env_path = Path(".env")
+        load_dotenv(env_path)
+
+        theme_preference = os.getenv("THEME_PREFERENCE", "System")
+        ctk.set_appearance_mode(theme_preference)
 
         self.title("Oxygen Monitoring System")
         self.geometry("650x400")
@@ -35,13 +44,15 @@ class O2DashboardApp(ctk.CTk):
         frame.tkraise()
     
     def check_initial_setup(self):
-        """If essential .env variables are missing, for them to Settings."""
+        """If essential .env variables are missing, forward them to Settings."""
         env_path = Path(".env")
         load_dotenv(dotenv_path=env_path)
         
         sensor_ip = os.getenv("SENSOR_IP")
+        sensor_port = os.getenv("SENSOR_PORT")
+        device_id = os.getenv("DEVICE_ID")
 
-        if not sensor_ip:
+        if not valid_parameter(sensor_ip) or not valid_parameter(sensor_port) or not valid_parameter(device_id):
             self.show_frame("SettingsFrame")
         else:
             self.show_frame("MainMenuFrame")
@@ -67,6 +78,9 @@ class MainMenuFrame(ctk.CTkFrame):
         btn_settings = ctk.CTkButton(self, text="Settings", command=lambda: controller.show_frame("SettingsFrame"))
         btn_settings.pack(pady=10)
 
+        btn_exit = ctk.CTkButton(self, text="Exit", command=lambda: parent.quit())
+        btn_exit.pack(pady=10)
+
 
 class SettingsFrame(ctk.CTkFrame):
 
@@ -80,10 +94,12 @@ class SettingsFrame(ctk.CTkFrame):
         sensor_ip = os.getenv("SENSOR_IP")
         sensor_port = os.getenv("SENSOR_PORT")
         device_id = os.getenv("DEVICE_ID")
+        theme_preference = os.getenv("THEME_PREFERENCE", "System")
 
         self.columnconfigure(0, weight=1)
         self.columnconfigure(3, weight=1)
         
+        # Sensor connection details
         lbl_title = ctk.CTkLabel(self, text="Settings & Configurations", font=("Arial", 24, "bold"))
         lbl_title.grid(row=0, column=1, pady=40, columnspan=2)
 
@@ -108,21 +124,36 @@ class SettingsFrame(ctk.CTkFrame):
 
         self.device_id = ctk.CTkEntry(self, placeholder_text="(e.g. 1)", width=350)
         if device_id:
-            self.device_id.insert(0,device_id)
+            self.device_id.insert(0, device_id)
         self.device_id.grid(row=3, column=2, pady=10)
 
+        # Theme toggler (Light, Dark, System)
+        segmented_button = ctk.CTkSegmentedButton(self, values=["Light", "Dark", "System"], command=self.change_theme)
+        segmented_button.grid(row=4, column=1, pady=10, columnspan=2)
+        segmented_button.set(theme_preference)
+
+        # Action buttons
         button_frame = ctk.CTkFrame(self, fg_color="transparent")
-        button_frame.grid(row=5, column=1, pady=20, columnspan=2)
+        button_frame.grid(row=5, column=1, pady=10, columnspan=2)
 
         btn_save = ctk.CTkButton(button_frame, text="Save Preferences", command=self.save_settings)
-        btn_save.grid(row=5, column=1, padx=10, pady=10, sticky="e")
+        btn_save.grid(row=5, column=1, padx=10, sticky="e")
 
         btn_cancel = ctk.CTkButton(button_frame, text="Cancel", command=self.cancel)
-        btn_cancel.grid(row=5, column=2, padx=10, pady=10, sticky="w")
+        btn_cancel.grid(row=5, column=2, padx=10, sticky="w")
 
-        #TODO Add a theme toggle (for light, dark or system)
+        # Custom button bindings
+        self.entry_ip.bind("<FocusIn>", self.reset_ip_error)
+        self.entry_ip.bind("<Return>", self.save_settings)
 
-    def save_settings(self):
+        self.entry_port.bind("<FocusIn>", self.reset_pord_error)
+        self.entry_port.bind("<Return>", self.save_settings)
+
+        self.device_id.bind("<FocusIn>", self.reset_id_error)
+        self.device_id.bind("<Return>", self.save_settings)
+
+
+    def save_settings(self, event=None):
         """Save settings for new session. Cannot save unless all fields are populated."""
         entry_ip = self.entry_ip.get()
         entry_port = self.entry_port.get()
@@ -130,21 +161,27 @@ class SettingsFrame(ctk.CTkFrame):
 
         has_errors = False
 
-        if entry_ip == "":
+        if not valid_parameter(entry_ip):
+            self.entry_ip.delete(0, "end")
+            self.focus_set()
             self.entry_ip.configure(placeholder_text="MISSING: Enter Sensor IP (e.g. 192.168.0.7)", placeholder_text_color="#ff4c4c")
             has_errors = True
     
-        if entry_port == "":
+        if not valid_parameter(entry_port):
+            self.entry_port.delete(0, "end")
+            self.focus_set()
             self.entry_port.configure(placeholder_text="MISSING: Enter Sensor Port (e.g. 502)", placeholder_text_color="#ff4c4c")
             has_errors = True
         
-        if device_id == "":
+        if not valid_parameter(device_id):
+            self.device_id.delete(0, "end")
+            self.focus_set()
             self.device_id.configure(placeholder_text="MISSING: Enter Device ID (e.g. 1)", placeholder_text_color="#ff4c4c")
             has_errors = True
         
         if has_errors:
             return
-
+        
         env_path = Path(".env")
         set_key(dotenv_path=env_path, key_to_set="SENSOR_IP", value_to_set=entry_ip)
         set_key(dotenv_path=env_path, key_to_set="SENSOR_PORT", value_to_set=entry_port)
@@ -152,9 +189,34 @@ class SettingsFrame(ctk.CTkFrame):
         self.controller.show_frame("MainMenuFrame")
     
     def cancel(self):
-        """Returns user to the MainMenuFrame"""
+        """Returns user to the MainMenuFrame."""
         self.controller.show_frame("MainMenuFrame")
 
+    def reset_ip_error(self, event):
+        """Resets the entry_ip placeholder_text property after an error."""
+        self.entry_ip.configure(placeholder_text="(e.g. 192.168.0.7)", placeholder_text_color="gray")
+        self.entry_ip._deactivate_placeholder()
+
+    def reset_pord_error(self, event):
+        """Resets the entry_port placeholder_text property after an error."""
+        self.entry_port.configure(placeholder_text="(e.g. 502)", placeholder_text_color="gray")
+        self.entry_port._deactivate_placeholder()
+
+    def reset_id_error(self, event):
+        """Resets the device_id placeholder_text property after an error."""
+        self.device_id.configure(placeholder_text="(e.g. 1)", placeholder_text_color="gray")
+        self.device_id._deactivate_placeholder()
+    
+    def change_theme(parent, new_theme):
+        """Modifies the .env key to reflect the new theme preference."""
+        if not valid_parameter(new_theme):
+            return
+
+        ctk.set_appearance_mode(new_theme)
+
+        env_path = Path(".env")
+        set_key(dotenv_path=env_path, key_to_set="THEME_PREFERENCE", value_to_set=new_theme)
+        
 
 class MonitorFrame(ctk.CTkFrame):
 
