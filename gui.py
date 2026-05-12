@@ -380,19 +380,19 @@ class MonitorFrame(ctk.CTkFrame):
         
         if not device_id:
             return
-        
+    
+        client = ModbusTcpClient(host=sensor_ip, port=sensor_port, timeout=2)
+
         while True:
             try:
-                client = ModbusTcpClient(host=sensor_ip, port=sensor_port, timeout=10)
-                connection = client.connect()
-
-                if not connection:
+                if not client.connect():
                     print("Failed to connect.")
                 else:
                     result = client.read_holding_registers(address=10, count=6, device_id=device_id)
 
                     if result.isError():
                         print("Error reading the data.")
+                        client.close()
                     else:
                         o2 = client.convert_from_registers(
                             result.registers[0:2],
@@ -420,14 +420,10 @@ class MonitorFrame(ctk.CTkFrame):
 
             except Exception as exc:
                 print(f"Error: {exc}")
-
-            finally:
                 client.close()
-        
+
             time.sleep(1)
         
-    
-
     def check_mailbox(self):
         """Runs on the main UI thread. Checks for data and updated the screen."""
         if hasattr(self, "current_data"):
