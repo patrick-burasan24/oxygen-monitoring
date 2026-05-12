@@ -1,8 +1,12 @@
 import os
+import random
+import threading
+import time
 import customtkinter as ctk
 from pathlib import Path
 from dotenv import load_dotenv, set_key
 from tkdial import Meter
+from pymodbus.client import ModbusTcpClient
 
 ctk.set_default_color_theme("dark-blue")
 
@@ -23,7 +27,7 @@ class O2DashboardApp(ctk.CTk):
         ctk.set_appearance_mode(theme_preference)
 
         self.title("Oxygen Monitoring System")
-        self.geometry("650x400")
+        self.geometry("700x500")
 
         self.frames = {}
 
@@ -221,6 +225,9 @@ class SettingsFrame(ctk.CTkFrame):
 
         env_path = Path(".env")
         set_key(dotenv_path=env_path, key_to_set="THEME_PREFERENCE", value_to_set=new_theme)
+
+        # Update gauge theme
+        self.controller.frames["MonitorFrame"].update_gauge_theme()
         
 
 class MonitorFrame(ctk.CTkFrame):
@@ -228,6 +235,9 @@ class MonitorFrame(ctk.CTkFrame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
+
+        worker = threading.Thread(target=self.background_modbus_worker, daemon=True)
+        worker.start()
 
         self.columnconfigure(0, weight=3)
         self.columnconfigure(1, weight=1)
@@ -268,26 +278,162 @@ class MonitorFrame(ctk.CTkFrame):
         lbl_press_unit.pack(pady=(0, 20), side="bottom")
 
         # Oxygen Gauge Meter Wrapper
-        oxygen_frame = ctk.CTkFrame(self)
-        oxygen_frame.grid(row=1, column=0, rowspan=2, sticky="nesw")
+        self.oxygen_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.oxygen_frame.grid(row=1, column=0, rowspan=2, sticky="nesw")
+
+        current_theme = ctk.get_appearance_mode()
+
+        if current_theme == "Dark":
+            bg_color = "#2b2b2b"
+            text_color = "white"
+        else:
+            bg_color = "#ebebeb"
+            text_color = "black"
         
         # Oxygen Gauge Meter
         self.o2_gauge = Meter(
-            oxygen_frame,
+            self.oxygen_frame,
             radius=260,
             start=0,
             end=25,
             major_divisions=5,
-            border_width=0,
-            fg="#f0f0f0",
-            text_color="black",
+            border_width=5,
             needle_color="#ff4c4c",
-            scale_color="black",
+            fg=bg_color,
+            bg=bg_color,
+            text_color=text_color,
+            scale_color=text_color,
         )
         self.o2_gauge.pack(expand=True)
 
         btn_back = ctk.CTkButton(self, text="Back to Menu", command=lambda: controller.show_frame("MainMenuFrame"))
         btn_back.grid(row=3, column=0, columnspan=2, pady=20)
+
+        # btn_test_data = ctk.CTkButton(self, text="Test Data", command=self.simulate_sensor_data)
+        # btn_test_data.grid(row=4, column=0, columnspan=2, pady=20)
+
+        self.check_mailbox()
+
+    def update_gauge_theme(self):
+        """Helper function to maintain theme responsiveness in the gauge."""
+        current_val = self.o2_gauge.get()
+
+        self.o2_gauge.destroy()
+
+        current_theme = ctk.get_appearance_mode()
+
+        if current_theme == "Dark":
+            bg_color = "#2b2b2b"
+            text_color = "white"
+        else:
+            bg_color = "#ebebeb"
+            text_color = "black"
+        
+        self.o2_gauge = Meter(
+            self.oxygen_frame,
+            radius=260,
+            start=0,
+            end=25,
+            major_divisions=5,
+            border_width=5,
+            needle_color="#ff4c4c",
+            fg=bg_color,
+            bg=bg_color,
+            text_color=text_color,
+            scale_color=text_color,
+        )
+        self.o2_gauge.pack(expand=True)
+
+        # Weird voodoo stuff here to force theme
+        self.o2_gauge.set(current_val)
+    
+    def update_dashboard(self, o2, temp, press):
+        """Receives live data and updates the UI components"""
+        self.o2_gauge.set(o2)
+        self.lbl_temp_val.configure(text=f"{temp:.1f}")
+        self.lbl_press_val.configure(text=f"{press:.0f}")
+    
+    def simulate_sensor_data(self):
+        fake_o2 = random.uniform(18.0, 22.0)
+        fake_temp = random.uniform(22.0, 26.0)
+        fake_press = random.uniform(990.0, 1010.0)
+        self.update_dashboard(fake_o2, fake_temp, fake_press)
+    
+    def poll_sensor(self):
+        self.after(1000, self.poll_sensor)
+
+    def background_modbus_worker(self):
+        """Runs in a separate thread. Never touches the UI directly"""
+        env_path = Path(".env")
+        load_dotenv(env_path)
+
+        sensor_ip = os.getenv("SENSOR_IP")
+        sensor_port = int(os.getenv("SENSOR_PORT"))
+        device_id = int(os.getenv("DEVICE_ID"))
+
+        #TODO Add alarm popups, if these verifications fail
+        if not sensor_ip:
+            return
+        
+        if not sensor_port:
+            return
+        
+        if not device_id:
+            return
+        
+        while True:
+            try:
+                client = ModbusTcpClient(host=sensor_ip, port=sensor_port, timeout=10)
+                connection = client.connect()
+
+                if not connection:
+                    print("Failed to connect.")
+                else:
+                    result = client.read_holding_registers(address=10, count=6, device_id=device_id)
+
+                    if result.isError():
+                        print("Error reading the data.")
+                    else:
+                        o2 = client.convert_from_registers(
+                            result.registers[0:2],
+                            client.DATATYPE.FLOAT32,
+                            word_order="big"
+                        )
+
+                        temp = client.convert_from_registers(
+                            result.registers[2:4],
+                            client.DATATYPE.FLOAT32,
+                            word_order="big"
+                        )
+
+                        press = client.convert_from_registers(
+                            result.registers[4:6],
+                            client.DATATYPE.FLOAT32,
+                            word_order="big"
+                        )
+
+                        self.current_data = {
+                            "o2": o2,
+                            "temp": temp,
+                            "press": press,
+                        }
+
+            except Exception as exc:
+                print(f"Error: {exc}")
+
+            finally:
+                client.close()
+        
+            time.sleep(1)
+        
+    
+
+    def check_mailbox(self):
+        """Runs on the main UI thread. Checks for data and updated the screen."""
+        if hasattr(self, "current_data"):
+            data = self.current_data
+            self.update_dashboard(data["o2"], data["temp"], data["press"])
+        self.after(1000, self.check_mailbox)
 
 if __name__ == "__main__":
     app = O2DashboardApp()
