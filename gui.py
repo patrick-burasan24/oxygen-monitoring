@@ -6,7 +6,10 @@ import customtkinter as ctk
 from pathlib import Path
 from dotenv import load_dotenv, set_key
 from tkdial import Meter
-from pymodbus.client import ModbusTcpClient
+from pymodbus.client import AsyncModbusTcpClient
+from pymodbus.framer import FramerType
+import asyncio
+from queue import Queue
 
 ctk.set_default_color_theme("dark-blue")
 
@@ -236,8 +239,9 @@ class MonitorFrame(ctk.CTkFrame):
         super().__init__(parent)
         self.controller = controller
 
-        worker = threading.Thread(target=self.background_modbus_worker, daemon=True)
-        worker.start()
+        self.data_queue = Queue()
+        self.start_async_bridge()
+        self.check_mailbox()
 
         self.columnconfigure(0, weight=3)
         self.columnconfigure(1, weight=1)
@@ -312,8 +316,6 @@ class MonitorFrame(ctk.CTkFrame):
         # btn_test_data = ctk.CTkButton(self, text="Test Data", command=self.simulate_sensor_data)
         # btn_test_data.grid(row=4, column=0, columnspan=2, pady=20)
 
-        self.check_mailbox()
-
     def update_gauge_theme(self):
         """Helper function to maintain theme responsiveness in the gauge."""
         current_val = self.o2_gauge.get()
@@ -359,11 +361,17 @@ class MonitorFrame(ctk.CTkFrame):
         fake_press = random.uniform(990.0, 1010.0)
         self.update_dashboard(fake_o2, fake_temp, fake_press)
     
-    def poll_sensor(self):
-        self.after(1000, self.poll_sensor)
+    def start_async_bridge(self):
+        """Creates the background thread that onws the asyncio loop."""
+        def run_loop():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(self.async_modbus_worker())
 
-    def background_modbus_worker(self):
-        """Runs in a separate thread. Never touches the UI directly"""
+        threading.Thread(target=run_loop, daemon=True).start()
+
+    async def async_modbus_worker(self):
+        """Runs in a separate thread. Never touches the UI directly."""
         env_path = Path(".env")
         load_dotenv(env_path)
 
@@ -381,54 +389,57 @@ class MonitorFrame(ctk.CTkFrame):
         if not device_id:
             return
     
-        client = ModbusTcpClient(host=sensor_ip, port=sensor_port, timeout=2)
+        client = AsyncModbusTcpClient(host=sensor_ip, port=sensor_port, framer=FramerType.RTU, timeout=2)
 
         while True:
             try:
-                if not client.connect():
-                    print("Failed to connect.")
+                if not client.connected:
+                    await client.connect()
+
+                if client.connected:
+                    result = await client.read_holding_registers(address=10, count=6, device_id=device_id)
+
+                if result.isError():
+                    print("Error reading the data.")
+                    client.close()
                 else:
-                    result = client.read_holding_registers(address=10, count=6, device_id=device_id)
+                    o2 = client.convert_from_registers(
+                        result.registers[0:2],
+                        client.DATATYPE.FLOAT32,
+                        word_order="big",
+                    )
 
-                    if result.isError():
-                        print("Error reading the data.")
-                        client.close()
-                    else:
-                        o2 = client.convert_from_registers(
-                            result.registers[0:2],
-                            client.DATATYPE.FLOAT32,
-                            word_order="big"
-                        )
+                    temp = client.convert_from_registers(
+                        result.registers[2:4],
+                        client.DATATYPE.FLOAT32,
+                        word_order="big",
+                    )
 
-                        temp = client.convert_from_registers(
-                            result.registers[2:4],
-                            client.DATATYPE.FLOAT32,
-                            word_order="big"
-                        )
+                    press = client.convert_from_registers(
+                        result.registers[4:6],
+                        client.DATATYPE.FLOAT32,
+                        word_order="big",
+                    )
 
-                        press = client.convert_from_registers(
-                            result.registers[4:6],
-                            client.DATATYPE.FLOAT32,
-                            word_order="big"
-                        )
-
-                        self.current_data = {
-                            "o2": o2,
-                            "temp": temp,
-                            "press": press,
-                        }
-
+                    self.data_queue.put({
+                        "o2": o2,
+                        "temp": temp,
+                        "press": press,
+                    })
+        
             except Exception as exc:
                 print(f"Error: {exc}")
                 client.close()
+            
+            await asyncio.sleep(1)
 
-            time.sleep(1)
         
     def check_mailbox(self):
         """Runs on the main UI thread. Checks for data and updated the screen."""
-        if hasattr(self, "current_data"):
-            data = self.current_data
+        while not self.data_queue.empty():
+            data = self.data_queue.get()
             self.update_dashboard(data["o2"], data["temp"], data["press"])
+        
         self.after(1000, self.check_mailbox)
 
 if __name__ == "__main__":
