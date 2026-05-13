@@ -1,70 +1,26 @@
-import os
 import random
-import threading
-import time
 import customtkinter as ctk
-from pathlib import Path
-from dotenv import load_dotenv, set_key
 from tkdial import Meter
-from pymodbus.client import AsyncModbusTcpClient
-from pymodbus.framer import FramerType
+import threading
 import asyncio
 from queue import Queue
+from config import get_env, set_env, valid_parameter
+from sensor_service import SensorService
 
-ctk.set_default_color_theme("dark-blue")
-
-
-def valid_parameter(parameter: str):
-    return parameter and parameter != "" and parameter.strip() !=  ""
-
-
-class O2DashboardApp(ctk.CTk):
-
-    def __init__(self):
-        super().__init__()
-
-        env_path = Path(".env")
-        load_dotenv(env_path)
-
-        theme_preference = os.getenv("THEME_PREFERENCE", "System")
-        ctk.set_appearance_mode(theme_preference)
-
-        self.title("Oxygen Monitoring System")
-        self.geometry("700x500")
-
-        self.frames = {}
-
-        for PageClass in (MainMenuFrame, MonitorFrame, SettingsFrame):
-            page_name = PageClass.__name__
-            frame = PageClass(parent=self, controller=self)
-            self.frames[page_name] = frame
-
-            frame.grid(row=0, column=0, sticky="nsew")
-        
-        self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(0, weight=1)
-
-        self.check_initial_setup()
-    
-    def show_frame(self, page_name):
-        """Brings the requested page to the top."""
-        frame = self.frames[page_name]
-        frame.tkraise()
-    
-    def check_initial_setup(self):
-        """If essential .env variables are missing, forward them to Settings."""
-        env_path = Path(".env")
-        load_dotenv(dotenv_path=env_path)
-        
-        sensor_ip = os.getenv("SENSOR_IP")
-        sensor_port = os.getenv("SENSOR_PORT")
-        device_id = os.getenv("DEVICE_ID")
-
-        if not valid_parameter(sensor_ip) or not valid_parameter(sensor_port) or not valid_parameter(device_id):
-            self.show_frame("SettingsFrame")
-        else:
-            self.show_frame("MainMenuFrame")
-
+def create_gauge_meter(frame, fg, bg, text_color, scale_text):
+    return Meter(
+            frame,
+            radius=260,
+            start=0,
+            end=25,
+            major_divisions=5,
+            border_width=5,
+            needle_color="#ff4c4c",
+            fg=fg,
+            bg=bg,
+            text_color=text_color,
+            scale_color=scale_text,
+        )
 
 class MainMenuFrame(ctk.CTkFrame):
 
@@ -96,13 +52,7 @@ class SettingsFrame(ctk.CTkFrame):
         super().__init__(parent)
         self.controller = controller
 
-        env_path = Path(".env")
-        load_dotenv(env_path)
-
-        sensor_ip = os.getenv("SENSOR_IP")
-        sensor_port = os.getenv("SENSOR_PORT")
-        device_id = os.getenv("DEVICE_ID")
-        theme_preference = os.getenv("THEME_PREFERENCE", "System")
+        theme_preference = get_env("THEME_PREFERENCE", "System")
 
         self.columnconfigure(0, weight=1)
         self.columnconfigure(3, weight=1)
@@ -115,24 +65,21 @@ class SettingsFrame(ctk.CTkFrame):
         lbl_sensor_ip.grid(row=1, column=1, pady=10)
 
         self.entry_ip = ctk.CTkEntry(self, placeholder_text="(e.g. 192.168.0.7)", width=350)
-        if sensor_ip:
-            self.entry_ip.insert(0, sensor_ip)
+        self.entry_ip.insert(0, get_env("SENSOR_IP"))
         self.entry_ip.grid(row=1, column=2, pady=10)
 
         lbl_sensor_port = ctk.CTkLabel(self, text="Sensor Port ")
         lbl_sensor_port.grid(row=2, column=1, pady=10)
 
         self.entry_port = ctk.CTkEntry(self, placeholder_text="(e.g. 502)", width=350)
-        if sensor_port:
-            self.entry_port.insert(0, sensor_port)
+        self.entry_port.insert(0, get_env("SENSOR_PORT"))
         self.entry_port.grid(row=2, column=2, pady=10)
 
         lbl_device_id = ctk.CTkLabel(self, text="Device ID ")
         lbl_device_id.grid(row=3, column=1, pady=10)
 
         self.device_id = ctk.CTkEntry(self, placeholder_text="(e.g. 1)", width=350)
-        if device_id:
-            self.device_id.insert(0, device_id)
+        self.device_id.insert(0, get_env("DEVICE_ID"))
         self.device_id.grid(row=3, column=2, pady=10)
 
         # Theme toggler (Light, Dark, System)
@@ -190,10 +137,9 @@ class SettingsFrame(ctk.CTkFrame):
         if has_errors:
             return
         
-        env_path = Path(".env")
-        set_key(dotenv_path=env_path, key_to_set="SENSOR_IP", value_to_set=entry_ip)
-        set_key(dotenv_path=env_path, key_to_set="SENSOR_PORT", value_to_set=entry_port)
-        set_key(dotenv_path=env_path, key_to_set="DEVICE_ID", value_to_set=device_id)
+        set_env("SENSOR_IP", entry_ip)
+        set_env("SENSOR_PORT", entry_port)
+        set_env("DEVICE_ID", device_id)
         self.controller.show_frame("MainMenuFrame")
     
     def cancel(self):
@@ -226,8 +172,7 @@ class SettingsFrame(ctk.CTkFrame):
         ctk.set_appearance_mode(new_theme)
         self.after(200, curtain_frame.destroy)
 
-        env_path = Path(".env")
-        set_key(dotenv_path=env_path, key_to_set="THEME_PREFERENCE", value_to_set=new_theme)
+        set_env("THEME_PREFERENCE", new_theme)
 
         # Update gauge theme
         self.controller.frames["MonitorFrame"].update_gauge_theme()
@@ -240,6 +185,7 @@ class MonitorFrame(ctk.CTkFrame):
         self.controller = controller
 
         self.data_queue = Queue()
+        self.sensor_service = SensorService(self.data_queue)
         self.start_async_bridge()
         self.check_mailbox()
 
@@ -295,26 +241,20 @@ class MonitorFrame(ctk.CTkFrame):
             text_color = "black"
         
         # Oxygen Gauge Meter
-        self.o2_gauge = Meter(
+        self.o2_gauge = create_gauge_meter(
             self.oxygen_frame,
-            radius=260,
-            start=0,
-            end=25,
-            major_divisions=5,
-            border_width=5,
-            needle_color="#ff4c4c",
-            fg=bg_color,
-            bg=bg_color,
-            text_color=text_color,
-            scale_color=text_color,
+            bg_color,
+            bg_color,
+            text_color,
+            text_color
         )
         self.o2_gauge.pack(expand=True)
 
         btn_back = ctk.CTkButton(self, text="Back to Menu", command=lambda: controller.show_frame("MainMenuFrame"))
         btn_back.grid(row=3, column=0, columnspan=2, pady=20)
 
-        # btn_test_data = ctk.CTkButton(self, text="Test Data", command=self.simulate_sensor_data)
-        # btn_test_data.grid(row=4, column=0, columnspan=2, pady=20)
+        btn_test_data = ctk.CTkButton(self, text="Test Data", command=self.simulate_sensor_data)
+        btn_test_data.grid(row=4, column=0, columnspan=2, pady=20)
 
     def update_gauge_theme(self):
         """Helper function to maintain theme responsiveness in the gauge."""
@@ -331,18 +271,12 @@ class MonitorFrame(ctk.CTkFrame):
             bg_color = "#ebebeb"
             text_color = "black"
         
-        self.o2_gauge = Meter(
+        self.o2_gauge = create_gauge_meter(
             self.oxygen_frame,
-            radius=260,
-            start=0,
-            end=25,
-            major_divisions=5,
-            border_width=5,
-            needle_color="#ff4c4c",
-            fg=bg_color,
-            bg=bg_color,
-            text_color=text_color,
-            scale_color=text_color,
+            bg_color,
+            bg_color,
+            text_color,
+            text_color
         )
         self.o2_gauge.pack(expand=True)
 
@@ -366,82 +300,18 @@ class MonitorFrame(ctk.CTkFrame):
         def run_loop():
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(self.async_modbus_worker())
+            loop.run_until_complete(self.sensor_service.poll_sensor())
 
         threading.Thread(target=run_loop, daemon=True).start()
 
-    async def async_modbus_worker(self):
-        """Runs in a separate thread. Never touches the UI directly."""
-        env_path = Path(".env")
-        load_dotenv(env_path)
-
-        sensor_ip = os.getenv("SENSOR_IP")
-        sensor_port = int(os.getenv("SENSOR_PORT"))
-        device_id = int(os.getenv("DEVICE_ID"))
-
-        #TODO Add alarm popups, if these verifications fail
-        if not sensor_ip:
-            return
-        
-        if not sensor_port:
-            return
-        
-        if not device_id:
-            return
-    
-        client = AsyncModbusTcpClient(host=sensor_ip, port=sensor_port, framer=FramerType.RTU, timeout=2)
-
-        while True:
-            try:
-                if not client.connected:
-                    await client.connect()
-
-                if client.connected:
-                    result = await client.read_holding_registers(address=10, count=6, device_id=device_id)
-
-                if result.isError():
-                    print("Error reading the data.")
-                    client.close()
-                else:
-                    o2 = client.convert_from_registers(
-                        result.registers[0:2],
-                        client.DATATYPE.FLOAT32,
-                        word_order="big",
-                    )
-
-                    temp = client.convert_from_registers(
-                        result.registers[2:4],
-                        client.DATATYPE.FLOAT32,
-                        word_order="big",
-                    )
-
-                    press = client.convert_from_registers(
-                        result.registers[4:6],
-                        client.DATATYPE.FLOAT32,
-                        word_order="big",
-                    )
-
-                    self.data_queue.put({
-                        "o2": o2,
-                        "temp": temp,
-                        "press": press,
-                    })
-        
-            except Exception as exc:
-                print(f"Error: {exc}")
-                client.close()
-            
-            await asyncio.sleep(1)
-
-        
     def check_mailbox(self):
         """Runs on the main UI thread. Checks for data and updated the screen."""
         while not self.data_queue.empty():
             data = self.data_queue.get()
-            self.update_dashboard(data["o2"], data["temp"], data["press"])
+            self.update_dashboard(
+                data["o2_value"],
+                data["internal_temperature_value"],
+                data["internal_pressure_value"]
+            )
         
         self.after(1000, self.check_mailbox)
-
-if __name__ == "__main__":
-    app = O2DashboardApp()
-    app.mainloop()
