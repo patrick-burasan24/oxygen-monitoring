@@ -1,8 +1,9 @@
 import customtkinter as ctk
 from config import get_env, valid_parameter
 from frames import MainMenuFrame, SettingsFrame, MonitorFrame
+from database import initialize_db
 
-ctk.set_appearance_mode("dark-blue")
+ctk.set_default_color_theme("dark-blue")
 
 class O2DashboardApp(ctk.CTk):
 
@@ -16,6 +17,10 @@ class O2DashboardApp(ctk.CTk):
         self.geometry("700x500")
 
         self.frames = {}
+        self.is_logging = False
+        database_path = get_env("DATABASE_PATH")
+        self.db_con = initialize_db(database_path)
+        
 
         for PageClass in (MainMenuFrame, MonitorFrame, SettingsFrame):
             page_name = PageClass.__name__

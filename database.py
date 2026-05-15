@@ -1,9 +1,18 @@
 import sqlite3
-import os
-from dotenv import load_dotenv
 import datetime as dt
+from config import get_env, set_env
 
-def initialize_db(db_path):
+def initialize_db(db_path:str = None):
+    """Initializes the connection to the database at db_path. Creates the
+    database if it doesn't exist."""
+
+    if not db_path:
+        db_path = get_env("DATABASE_PATH", "./sensor_readings.db")
+    
+    if not db_path.endswith(".db"):
+        print("Error: The database entension must end with .db")
+        return
+    
     try:
         con = sqlite3.connect(db_path)
         con.execute(""" CREATE TABLE IF NOT EXISTS readings(
@@ -14,6 +23,9 @@ def initialize_db(db_path):
                         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
                     );
                     """)
+        
+        set_env("DATABASE_PATH", db_path)
+        
         cursor = con.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='readings';")
 
         if cursor.fetchone() is None:
@@ -80,16 +92,7 @@ def get_daily_timeseries(con, target_date):
     return rows
 
 if __name__ == "__main__":
-    load_dotenv("./data.env")
-
-    DATABASE_PATH = os.getenv("DATABASE_PATH")
-
-    if DATABASE_PATH is None:
-        print("Error finding the database. Exiting here.")
-        exit(1)
-    
-    assert(DATABASE_PATH is not None)
-
+    DATABASE_PATH = get_env("DATABASE_PATH")
     con = initialize_db(DATABASE_PATH)
 
     add_reading(con, 25.01, 35, 1004)

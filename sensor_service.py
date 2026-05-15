@@ -10,36 +10,36 @@ class SensorService():
         self.data_queue = data_queue
 
     async def poll_sensor(self):
-        sensor_ip = get_env("SENSOR_IP", "192.168.0.7")
-        sensor_port = int(get_env("SENSOR_PORT", "502"))
-        device_id = int(get_env("DEVICE_ID", "1"))
-
-        if not sensor_ip:
-            print("Error: No IP address was provided for the sensor.")
-            return
-    
-        client = AsyncModbusTcpClient(
-            host=sensor_ip,
-            port=sensor_port,
-            framer=FramerType.RTU,
-            timeout=2
-        )
-
-        register_address = get_env("REGISTER_ADDRESS")
-        register_count = get_env("REGISTER_COUNT")
-
-        if not register_address or not register_count:
-            print("Error: Unconfigured register data. Reading operation cannot commence.")
-            return
-        
-        register_address = int(register_address)
-        register_count = int(register_count)
-
         while True:
+            sensor_ip = get_env("SENSOR_IP", "192.168.0.7")
+            sensor_port = int(get_env("SENSOR_PORT", "502"))
+            device_id = int(get_env("DEVICE_ID", "1"))
+
+            if not sensor_ip:
+                print("Error: No IP address was provided for the sensor.")
+                return
+        
+            client = AsyncModbusTcpClient(
+                host=sensor_ip,
+                port=sensor_port,
+                framer=FramerType.RTU,
+                timeout=2
+            )
+
+            register_address = get_env("REGISTER_ADDRESS")
+            register_count = get_env("REGISTER_COUNT")
+
+            if not register_address or not register_count:
+                print("Error: Unconfigured register data. Reading operation cannot commence.")
+                return
+            
+            register_address = int(register_address)
+            register_count = int(register_count)
+            
             try:
                 if not client.connected:
                     await client.connect()
-                
+
                 if client.connected:
                     result = await client.read_holding_registers(
                         address=register_address,

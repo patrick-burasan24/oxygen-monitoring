@@ -6,8 +6,9 @@ import asyncio
 from queue import Queue
 from config import get_env, set_env, valid_parameter
 from sensor_service import SensorService
+from database import add_reading
 
-def create_gauge_meter(frame, fg, bg, text_color, scale_text):
+def _create_gauge_meter(frame, fg, bg, text_color, scale_text):
     return Meter(
             frame,
             radius=260,
@@ -34,8 +35,8 @@ class MainMenuFrame(ctk.CTkFrame):
         btn_monitor = ctk.CTkButton(self, text="Watch Monitor", command=lambda: controller.show_frame("MonitorFrame"))
         btn_monitor.pack(pady=10)
 
-        btn_logger = ctk.CTkButton(self, text="Start Logging")
-        btn_logger.pack(pady=10)
+        self.btn_logger = ctk.CTkButton(self, text="Start Logging", command=self.toggle_logging)
+        self.btn_logger.pack(pady=10)
 
         # Reporter logic will go here
 
@@ -44,6 +45,14 @@ class MainMenuFrame(ctk.CTkFrame):
 
         btn_exit = ctk.CTkButton(self, text="Exit", command=lambda: parent.quit())
         btn_exit.pack(pady=10)
+    
+    def toggle_logging(self):
+        """Flips the self.controller.is_logging value."""
+        self.controller.is_logging = not self.controller.is_logging
+        if self.controller.is_logging:
+            self.btn_logger.configure(text="Stop Logging", fg_color="#ff4c4c")
+        else:
+            self.btn_logger.configure(text="Start Logging")
 
 
 class SettingsFrame(ctk.CTkFrame):
@@ -241,7 +250,7 @@ class MonitorFrame(ctk.CTkFrame):
             text_color = "black"
         
         # Oxygen Gauge Meter
-        self.o2_gauge = create_gauge_meter(
+        self.o2_gauge = _create_gauge_meter(
             self.oxygen_frame,
             bg_color,
             bg_color,
@@ -271,7 +280,7 @@ class MonitorFrame(ctk.CTkFrame):
             bg_color = "#ebebeb"
             text_color = "black"
         
-        self.o2_gauge = create_gauge_meter(
+        self.o2_gauge = _create_gauge_meter(
             self.oxygen_frame,
             bg_color,
             bg_color,
@@ -313,5 +322,12 @@ class MonitorFrame(ctk.CTkFrame):
                 data["internal_temperature_value"],
                 data["internal_pressure_value"]
             )
+            if self.controller.is_logging:
+                add_reading(
+                    self.controller.db_con,
+                    data["o2_value"],
+                    data["internal_temperature_value"],
+                    data["internal_pressure_value"]
+                )
         
         self.after(1000, self.check_mailbox)
