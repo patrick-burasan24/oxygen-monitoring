@@ -403,12 +403,12 @@ class MonitorFrame(ctk.CTkFrame):
         current_theme = ctk.get_appearance_mode()
 
         if current_theme == "Dark":
-            bg_color = "#2b2b2b"
+            bg_color = "#212121"
             text_color = "white"
         else:
-            bg_color = "#ebebeb"
+            bg_color = "#e5e5e5"
             text_color = "black"
-
+        
         self.o2_gauge = _create_gauge_meter(
             self.oxygen_frame,
             bg_color,
