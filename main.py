@@ -1,6 +1,9 @@
 import sys
 import os
+import platform
 
+# -----------------------------------------------------------------------------
+# macOS
 # -----------------------------------------------------------------------------
 # Forces the working directory to the executable's true physical location
 if getattr(sys, "frozen", False):
@@ -10,6 +13,14 @@ if getattr(sys, "frozen", False):
         application_path = os.path.abspath(os.path.join(application_path, "../../.."))
     
     os.chdir(application_path)
+# -----------------------------------------------------------------------------
+# Windows
+# -----------------------------------------------------------------------------
+if getattr(sys, "frozen", False):
+    asset_base_path = sys._MEIPASS if hasattr(sys, "_MEIPASS") else application_path
+else:
+    asset_base_path = os.path.dirname(os.path.abspath(__file__))
+WINDOW_ICON_PATH = os.path.join(asset_base_path, "o2m-logo.ico")
 # -----------------------------------------------------------------------------
 
 import customtkinter as ctk
@@ -31,8 +42,20 @@ class O2DashboardApp(ctk.CTk):
         self.title("Oxygen Monitoring System")
         self.geometry("600x500")
 
-        # Uncomment for Windows
-        # self.iconbitmap("app_icon.ico")
+        # Made the applicatio cross-platform
+        if os.path.exists(WINDOW_ICON_PATH):
+            if platform.system() == "Windows":
+                import ctypes
+                # Arbitrary unique ID string...
+                myappid = "O2Monitoring.Dashboard.App.1"
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+                self.iconbitmap(WINDOW_ICON_PATH)
+            elif platform.system() == "Linux":
+                try:
+                    icon_img = ctk.PhotoImage(file=WINDOW_ICON_PATH.replace(".ico", ".png"))
+                    self.iconphoto(True, icon_img)
+                except Exception:
+                    pass
 
         self.current_page = None
         self.frames = {}
