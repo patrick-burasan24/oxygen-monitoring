@@ -1,16 +1,23 @@
 import sys
 import os
+
+# -----------------------------------------------------------------------------
+# Forces the working directory to the executable's true physical location
+if getattr(sys, "frozen", False):
+    application_path = os.path.dirname(sys.executable)
+
+    if application_path.endswith("Contents/MacOS"):
+        application_path = os.path.abspath(os.path.join(application_path, "../../.."))
+    
+    os.chdir(application_path)
+# -----------------------------------------------------------------------------
+
 import customtkinter as ctk
 from config import get_env, valid_parameter
 from frames import MainMenuFrame, SettingsFrame, MonitorFrame, ReporterFrame
 from database import initialize_db
 
 ctk.set_default_color_theme("dark-blue")
-
-# Forces the working directory to the executable's true physical location
-if getattr(sys, "frozen", False):
-    application_path = os.path.dirname(sys.executable)
-    os.chdir(application_path)
 
 
 class O2DashboardApp(ctk.CTk):

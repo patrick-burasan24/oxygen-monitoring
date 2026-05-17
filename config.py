@@ -2,7 +2,12 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv, set_key
 
-ENV_PATH = Path(".env")
+APP_DIR = Path.home() / ".o2m"
+
+APP_DIR.mkdir(parents=True, exist_ok=True)
+
+ENV_PATH = APP_DIR / ".env"
+
 load_dotenv(ENV_PATH)
 
 def get_env(key, default=""):

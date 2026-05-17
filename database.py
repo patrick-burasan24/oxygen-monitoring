@@ -1,15 +1,18 @@
 import sqlite3
 import datetime as dt
 from config import get_env, set_env
+from pathlib import Path
 
 def initialize_db(db_path:str = None):
     """Initializes the connection to the database at db_path. Creates the
     database if it doesn't exist."""
 
     if not db_path:
-        db_path = get_env("DATABASE_PATH", "./sensor_readings.db")
+        default_db = Path.home() / ".o2m" / "sensor_readings.db"
+        db_path = get_env("DATABASE_PATH", str(default_db))
     
     if not db_path.endswith(".db"):
+        print(db_path)
         print("Error: The database entension must end with .db")
         return
     
