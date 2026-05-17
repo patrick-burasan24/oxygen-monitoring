@@ -11,6 +11,7 @@ from database import add_reading
 import datetime as dt
 import calendar
 from reporter import generate_daily_report
+from database import summary
 
 
 def _create_gauge_meter(frame, fg, bg, text_color, scale_text):
@@ -125,7 +126,8 @@ class SettingsFrame(ctk.CTkFrame):
         self.device_id.insert(0, get_env("DEVICE_ID"))
         self.device_id.grid(row=3, column=2, pady=10)
 
-        self.lbl_o2_min_treshold = ctk.CTkLabel(self, text="19.5%")
+        self.lbl_o2_min_treshold = ctk.CTkLabel(
+            self, text="Min O2 Treshold: 19.5%")
         self.lbl_o2_min_treshold.grid(row=4, column=1, pady=10)
 
         self.o2_min_treshold = ctk.CTkSlider(
@@ -134,30 +136,48 @@ class SettingsFrame(ctk.CTkFrame):
             to=21.0,
             command=self.update_treshold_label
         )
-        # self.o2_min_treshold.insert(0, get_env("O2_MIN_TRESHOLD", "19.5"))
         self.o2_min_treshold.grid(row=4, column=2, pady=10)
 
         saved_treshold = float(get_env("O2_MIN_TRESHOLD", "19.5"))
         self.o2_min_treshold.set(saved_treshold)
-        self.lbl_o2_min_treshold.configure(text=f"{saved_treshold:.1f}%")
+        self.lbl_o2_min_treshold.configure(
+            text=f"Min O2 Treshold: {saved_treshold:.1f}%")
+
+        lbl_register_start_address = ctk.CTkLabel(
+            self, text="Register Start Address ")
+        lbl_register_start_address.grid(row=5, column=1, pady=10)
+
+        self.register_start_address = ctk.CTkEntry(
+            self, placeholder_text="(e.g. 0)", width=350)
+        self.register_start_address.insert(
+            0, get_env("REGISTER_START_ADDRESS", "10"))
+        self.register_start_address.grid(row=5, column=2, pady=10)
+
+        lbl_register_count = ctk.CTkLabel(self, text="Register Count ")
+        lbl_register_count.grid(row=6, column=1, pady=10)
+
+        self.register_count = ctk.CTkEntry(
+            self, placeholder_text="(e.g. 2)", width=350)
+        self.register_count.insert(0, get_env("REGISTER_COUNT", "2"))
+        self.register_count.grid(row=6, column=2, pady=10)
 
         # Theme toggler (Light, Dark, System)
         segmented_button = ctk.CTkSegmentedButton(
             self, values=["Light", "Dark", "System"], command=self.change_theme)
-        segmented_button.grid(row=5, column=1, pady=10, columnspan=2)
+        segmented_button.grid(row=7, column=1, pady=10, columnspan=2)
         segmented_button.set(theme_preference)
 
         # Action buttons
         button_frame = ctk.CTkFrame(self, fg_color="transparent")
-        button_frame.grid(row=6, column=1, pady=10, columnspan=2)
+        button_frame.grid(row=8, column=1, pady=10, columnspan=2)
 
         btn_save = ctk.CTkButton(
             button_frame, text="Save Preferences", command=self.save_settings)
-        btn_save.grid(row=6, column=1, padx=10, sticky="e")
+        btn_save.grid(row=8, column=1, padx=10, sticky="e")
 
         btn_cancel = ctk.CTkButton(
             button_frame, text="Cancel", command=self.cancel)
-        btn_cancel.grid(row=6, column=2, padx=10, sticky="w")
+        btn_cancel.grid(row=8, column=2, padx=10, sticky="w")
 
         # Custom button bindings
         self.entry_ip.bind("<FocusIn>", self.reset_ip_error)
@@ -175,6 +195,8 @@ class SettingsFrame(ctk.CTkFrame):
         entry_port = self.entry_port.get()
         device_id = self.device_id.get()
         o2_min_treshold = self.o2_min_treshold.get()
+        register_start_address = self.register_start_address.get()
+        register_count = self.register_count.get()
 
         has_errors = False
 
@@ -199,6 +221,19 @@ class SettingsFrame(ctk.CTkFrame):
                                      placeholder_text_color="#ff4c4c")
             has_errors = True
 
+        if not valid_parameter(register_start_address):
+            self.register_start_address.delete(0, "end")
+            self.focus_set()
+            self.register_start_address.configure(placeholder_text="MISSING: Enter Register Start Address (e.g. 0)",
+                                                  placeholder_text_color="#ff4c4c")
+            has_errors = True
+
+        if not valid_parameter(register_count):
+            self.register_count.delete(0, "end")
+            self.focus_set()
+            self.register_count.configure(
+                placeholder_text="MISSING: Enter Register Count (e.g. 2)", placeholder_text_color="#ff4c4c")
+
         if has_errors:
             return
 
@@ -206,6 +241,8 @@ class SettingsFrame(ctk.CTkFrame):
         set_env("SENSOR_PORT", entry_port)
         set_env("DEVICE_ID", device_id)
         set_env("O2_MIN_TRESHOLD", f"{o2_min_treshold}")
+        set_env("REGISTER_START_ADDRESS", register_start_address)
+        set_env("REGISTER_COUNT", register_count)
         self.controller.show_frame("MainMenuFrame")
 
     def cancel(self):
@@ -248,7 +285,8 @@ class SettingsFrame(ctk.CTkFrame):
 
     def update_treshold_label(self, value):
         """Updates the treshold label."""
-        self.lbl_o2_min_treshold.configure(text=f"{value:.1f}%")
+        self.lbl_o2_min_treshold.configure(
+            text=f"Min O2 Treshold: {value:.1f}%")
 
 
 class MonitorFrame(ctk.CTkFrame):
@@ -315,10 +353,10 @@ class MonitorFrame(ctk.CTkFrame):
         current_theme = ctk.get_appearance_mode()
 
         if current_theme == "Dark":
-            bg_color = "#2b2b2b"
+            bg_color = "#212121"
             text_color = "white"
         else:
-            bg_color = "#ebebeb"
+            bg_color = "#e5e5e5"
             text_color = "black"
 
         # Oxygen Gauge Meter
@@ -457,11 +495,13 @@ class ReporterFrame(ctk.CTkFrame):
         self.btn_generate.pack(pady=10)
 
         self.lbl_status = ctk.CTkLabel(self, text="", text_color="gray")
-        self.lbl_status.pack(pady=10)
+        self.lbl_status.pack(pady=10, fill="x")
 
         btn_back = ctk.CTkButton(self, text="Back to Menu", text_color="white", fg_color="gray",
                                  hover_color="#4d4d4d", command=lambda: self.controller.show_frame("MainMenuFrame"))
         btn_back.pack(pady=20)
+
+        self.bind("<Configure>", self.update_wrap)
 
     def update_days(self, choice=None):
         """Dynamically updates the days dropdown based on the selected year and month."""
@@ -469,7 +509,7 @@ class ReporterFrame(ctk.CTkFrame):
             year = int(self.year_var.get())
             month = int(self.month_var.get())
 
-            # Helps up avoid impossible dates
+            # Helps us avoid impossible dates
             _, max_days = calendar.monthrange(year, month)
 
             valid_days = [f"{d:02d}" for d in range(1, max_days + 1)]
@@ -485,6 +525,7 @@ class ReporterFrame(ctk.CTkFrame):
 
     def schedule_generation(self):
         """Gives the UI time to release the mouse button."""
+        self.lbl_status.configure(text="")
         self.btn_generate.configure(state="disabled")
         self.after(150, self._execute_save_dialog)
 
@@ -492,6 +533,13 @@ class ReporterFrame(ctk.CTkFrame):
         """Safely opens the file dialog after the UI has relaxed."""
         selected_date = f"{self.year_var.get()}-{self.month_var.get()}-{self.day_var.get()}"
         suggested_name = f"Sensor_Parameter_Report_{selected_date}"
+
+        daily_stats = summary(self.controller.db_con, selected_date)
+        if not daily_stats:
+            self.lbl_status.configure(
+                text=f"Failed. No data found for {selected_date}.", text_color="#ff4c4c")
+            self.btn_generate.configure(state="normal")
+            return
 
         save_path = filedialog.asksaveasfilename(
             defaultextension=".pdf",
@@ -521,3 +569,10 @@ class ReporterFrame(ctk.CTkFrame):
                 text=f"Failed. No data found for {target_date}.", text_color="#ff4c4c")
 
         self.btn_generate.configure(state="normal", text="Generate Report")
+
+    def update_wrap(self, event):
+        """Dynamically calculates the new width and applies it to the label."""
+        new_width = self.winfo_width() - 40
+
+        if new_width > 0:
+            self.lbl_status.configure(wraplength=new_width)

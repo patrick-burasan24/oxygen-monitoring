@@ -27,15 +27,20 @@ class SensorService():
                 timeout=2
             )
 
-            register_address = get_env("REGISTER_ADDRESS")
+            register_start_address = get_env("REGISTER_START_ADDRESS")
             register_count = get_env("REGISTER_COUNT")
 
-            if not register_address or not register_count:
+            if not register_start_address or not register_count:
                 print(
                     "Error: Unconfigured register data. Reading operation cannot commence.")
-                return
+                self.data_queue.put({
+                    "status": "error",
+                    "message": "Unconfigured register data. Reading operation cannot commence."
+                })
+                await asyncio.sleep(1)
+                continue
 
-            register_address = int(register_address)
+            register_start_address = int(register_start_address)
             register_count = int(register_count)
 
             try:
@@ -44,7 +49,7 @@ class SensorService():
 
                 if client.connected:
                     result = await client.read_holding_registers(
-                        address=register_address,
+                        address=register_start_address,
                         count=register_count,
                         device_id=device_id
                     )

@@ -15,7 +15,7 @@ class O2DashboardApp(ctk.CTk):
         ctk.set_appearance_mode(theme_preference)
 
         self.title("Oxygen Monitoring System")
-        self.geometry("700x500")
+        self.geometry("600x500")
 
         self.current_page = None
         self.frames = {}
@@ -116,8 +116,7 @@ class O2DashboardApp(ctk.CTk):
                 fg_color=["#3B8ED0", "#1F6AA5"],
                 hover_color=["#36719F", "#144870"]
             )
-
-
+        
 if __name__ == "__main__":
     app = O2DashboardApp()
     app.mainloop()

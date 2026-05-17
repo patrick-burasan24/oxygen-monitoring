@@ -19,10 +19,13 @@ def plot_parameter(parameter, timestamps, color, label, pdf_filename, name):
     ax.set_xticks(all_ticks)
 
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-    ax.set_xlim(start_time, end_time)
+
+    if len(timestamps) > 1:
+        ax.set_xlim(start_time, end_time)
 
     ax.plot(timestamps, parameter, color=color, linewidth=2, label=label)
     plt.xticks(rotation=45)
+    fig.tight_layout()
     plt.savefig(f"./img/{pdf_filename}/{name}.png")
     plt.close(fig)
 
