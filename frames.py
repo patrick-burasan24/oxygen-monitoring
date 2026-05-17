@@ -127,22 +127,22 @@ class SettingsFrame(ctk.CTkFrame):
         self.device_id.insert(0, get_env("DEVICE_ID"))
         self.device_id.grid(row=3, column=2, pady=10)
 
-        self.lbl_o2_min_treshold = ctk.CTkLabel(
+        self.lbl_o2_min_threshold = ctk.CTkLabel(
             self, text="Min O2 Treshold: 19.5%")
-        self.lbl_o2_min_treshold.grid(row=4, column=1, pady=10)
+        self.lbl_o2_min_threshold.grid(row=4, column=1, pady=10)
 
-        self.o2_min_treshold = ctk.CTkSlider(
+        self.o2_min_threshold = ctk.CTkSlider(
             self,
             from_=15.0,
             to=21.0,
-            command=self.update_treshold_label
+            command=self.update_threshold_label
         )
-        self.o2_min_treshold.grid(row=4, column=2, pady=10)
+        self.o2_min_threshold.grid(row=4, column=2, pady=10)
 
-        saved_treshold = float(get_env("O2_MIN_TRESHOLD", "19.5"))
-        self.o2_min_treshold.set(saved_treshold)
-        self.lbl_o2_min_treshold.configure(
-            text=f"Min O2 Treshold: {saved_treshold:.1f}%")
+        saved_threshold = float(get_env("O2_MIN_TRESHOLD", "19.5"))
+        self.o2_min_threshold.set(saved_threshold)
+        self.lbl_o2_min_threshold.configure(
+            text=f"Min O2 Treshold: {saved_threshold:.1f}%")
 
         lbl_register_start_address = ctk.CTkLabel(
             self, text="Register Start Address ")
@@ -158,8 +158,8 @@ class SettingsFrame(ctk.CTkFrame):
         lbl_register_count.grid(row=6, column=1, pady=10)
 
         self.register_count = ctk.CTkEntry(
-            self, placeholder_text="(e.g. 2)", width=350)
-        self.register_count.insert(0, get_env("REGISTER_COUNT", "2"))
+            self, placeholder_text="(e.g. 6)", width=350)
+        self.register_count.insert(0, get_env("REGISTER_COUNT", "6"))
         self.register_count.grid(row=6, column=2, pady=10)
 
         # Theme toggler (Light, Dark, System)
@@ -184,18 +184,25 @@ class SettingsFrame(ctk.CTkFrame):
         self.entry_ip.bind("<FocusIn>", self.reset_ip_error)
         self.entry_ip.bind("<Return>", self.save_settings)
 
-        self.entry_port.bind("<FocusIn>", self.reset_pord_error)
+        self.entry_port.bind("<FocusIn>", self.reset_port_error)
         self.entry_port.bind("<Return>", self.save_settings)
 
         self.device_id.bind("<FocusIn>", self.reset_id_error)
         self.device_id.bind("<Return>", self.save_settings)
+
+        self.register_start_address.bind(
+            "<FocusIn>", self.reset_register_start_address_error)
+        self.register_start_address.bind("<Return>", self.save_settings)
+
+        self.register_count.bind("<FocusIn>", self.reset_register_count_error)
+        self.register_count.bind("<Return>", self.save_settings)
 
     def save_settings(self, event=None):
         """Save settings for new session. Cannot save unless all fields are populated."""
         entry_ip = self.entry_ip.get()
         entry_port = self.entry_port.get()
         device_id = self.device_id.get()
-        o2_min_treshold = self.o2_min_treshold.get()
+        o2_min_threshold = self.o2_min_threshold.get()
         register_start_address = self.register_start_address.get()
         register_count = self.register_count.get()
 
@@ -233,7 +240,8 @@ class SettingsFrame(ctk.CTkFrame):
             self.register_count.delete(0, "end")
             self.focus_set()
             self.register_count.configure(
-                placeholder_text="MISSING: Enter Register Count (e.g. 2)", placeholder_text_color="#ff4c4c")
+                placeholder_text="MISSING: Enter Register Count (e.g. 6)", placeholder_text_color="#ff4c4c")
+            has_errors = True
 
         if has_errors:
             return
@@ -241,7 +249,7 @@ class SettingsFrame(ctk.CTkFrame):
         set_env("SENSOR_IP", entry_ip)
         set_env("SENSOR_PORT", entry_port)
         set_env("DEVICE_ID", device_id)
-        set_env("O2_MIN_TRESHOLD", f"{o2_min_treshold}")
+        set_env("O2_MIN_TRESHOLD", f"{o2_min_threshold}")
         set_env("REGISTER_START_ADDRESS", register_start_address)
         set_env("REGISTER_COUNT", register_count)
         self.controller.show_frame("MainMenuFrame")
@@ -256,7 +264,7 @@ class SettingsFrame(ctk.CTkFrame):
             placeholder_text="(e.g. 192.168.0.7)", placeholder_text_color="gray")
         self.entry_ip._deactivate_placeholder()
 
-    def reset_pord_error(self, event):
+    def reset_port_error(self, event):
         """Resets the entry_port placeholder_text property after an error."""
         self.entry_port.configure(
             placeholder_text="(e.g. 502)", placeholder_text_color="gray")
@@ -267,6 +275,18 @@ class SettingsFrame(ctk.CTkFrame):
         self.device_id.configure(
             placeholder_text="(e.g. 1)", placeholder_text_color="gray")
         self.device_id._deactivate_placeholder()
+
+    def reset_register_start_address_error(self, event):
+        """Resets the register_start_address placeholder_text property after an error."""
+        self.register_start_address.configure(
+            placeholder_text="(e.g. 0)", placeholder_text_color="gray")
+        self.register_start_address._deactivate_placeholder()
+
+    def reset_register_count_error(self, event):
+        """Resets the register_count placeholder_text property after an error."""
+        self.register_count.configure(
+            placeholder_text="(e.g. 6)", placeholder_text_color="gray")
+        self.register_count._deactivate_placeholder()
 
     def change_theme(self, new_theme):
         """Modifies the .env key to reflect the new theme preference."""
@@ -284,9 +304,9 @@ class SettingsFrame(ctk.CTkFrame):
         # Update gauge theme
         self.controller.frames["MonitorFrame"].update_gauge_theme()
 
-    def update_treshold_label(self, value):
-        """Updates the treshold label."""
-        self.lbl_o2_min_treshold.configure(
+    def update_threshold_label(self, value):
+        """Updates the threshold label."""
+        self.lbl_o2_min_threshold.configure(
             text=f"Min O2 Treshold: {value:.1f}%")
 
 
@@ -374,10 +394,6 @@ class MonitorFrame(ctk.CTkFrame):
             self, text="Back to Menu", command=lambda: controller.show_frame("MainMenuFrame"))
         btn_back.grid(row=3, column=0, columnspan=2, pady=20)
 
-        btn_test_data = ctk.CTkButton(
-            self, text="Test Data", command=self.simulate_sensor_data)
-        btn_test_data.grid(row=4, column=0, columnspan=2, pady=20)
-
     def update_gauge_theme(self):
         """Helper function to maintain theme responsiveness in the gauge."""
         current_val = self.o2_gauge.get()
@@ -413,16 +429,10 @@ class MonitorFrame(ctk.CTkFrame):
             temp = temp[0] if len(temp) > 0 else 0.0
         if isinstance(press, list):
             press = press[0] if len(press) > 0 else 0.0
-        
+
         self.o2_gauge.set(float(o2))
         self.lbl_temp_val.configure(text=f"{float(temp):.1f}")
         self.lbl_press_val.configure(text=f"{float(press):.0f}")
-
-    def simulate_sensor_data(self):
-        fake_o2 = random.uniform(18.0, 22.0)
-        fake_temp = random.uniform(22.0, 26.0)
-        fake_press = random.uniform(990.0, 1010.0)
-        self.update_dashboard(fake_o2, fake_temp, fake_press)
 
     def start_async_bridge(self):
         """Creates the background thread that onws the asyncio loop."""
@@ -435,29 +445,34 @@ class MonitorFrame(ctk.CTkFrame):
 
     def check_mailbox(self):
         """Runs on the main UI thread. Checks for data and updated the screen."""
-        while not self.data_queue.empty():
-            data = self.data_queue.get()
+        try:
+            while not self.data_queue.empty():
+                data = self.data_queue.get()
 
-            if "status" in data and data["status"] == "error":
-                self.controller.show_popup_error(
-                    message="Live network connection lost.")
-                continue
+                if "status" in data and data["status"] == "error":
+                    err_msg = data.get("message", "Live network connection lost.")
+                    self.controller.show_popup_error(
+                        message=err_msg)
+                    continue
 
-            self.update_dashboard(
-                data["o2_value"],
-                data["internal_temperature_value"],
-                data["internal_pressure_value"]
-            )
-
-            if self.controller.is_logging:
-                add_reading(
-                    self.controller.db_con,
+                self.update_dashboard(
                     data["o2_value"],
                     data["internal_temperature_value"],
                     data["internal_pressure_value"]
                 )
 
-        self.after(1000, self.check_mailbox)
+                if self.controller.is_logging:
+                    add_reading(
+                        self.controller.db_con,
+                        data["o2_value"],
+                        data["internal_temperature_value"],
+                        data["internal_pressure_value"]
+                    )
+        except Exception as e:
+            print(f"Error: {e}")
+        
+        finally:
+            self.after(1000, self.check_mailbox)
 
 
 class ReporterFrame(ctk.CTkFrame):
@@ -569,6 +584,10 @@ class ReporterFrame(ctk.CTkFrame):
     def _run_engine(self, target_date, save_path):
         success = generate_daily_report(target_date, save_path)
 
+        self.after(0, self._finish_generation, success, target_date, save_path)
+
+    def _finish_generation(self, success, target_date, save_path):
+        """This helps us avoid threading issues."""
         if success:
             self.lbl_status.configure(
                 text=f"Success! Report saved at {save_path}.", text_color="#28a745")

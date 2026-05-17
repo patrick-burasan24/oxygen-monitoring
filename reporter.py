@@ -1,3 +1,4 @@
+import sys
 import os
 import shutil
 import visualizer
@@ -10,6 +11,13 @@ from dotenv import load_dotenv
 from jinja2 import Environment, FileSystemLoader
 from config import get_env
 
+def get_resource_path(relative_path):
+    """Get the absolute path to a resource, works for dev and PyInstaller."""
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
 def generate_daily_report(target_date, save_path=None):
     """Generates the PDF report for the specified target_date (YYYY-MM-DD)."""
@@ -41,7 +49,8 @@ def generate_daily_report(target_date, save_path=None):
 
     visualizer.generate_graph(con, target_date, pdf_filename)
 
-    env = Environment(loader=FileSystemLoader("templates"))
+    template_dir = get_resource_path("templates")
+    env = Environment(loader=FileSystemLoader(template_dir))
     template = env.get_template("report.html")
     display_date = dt.datetime.strptime(
         target_date, "%Y-%m-%d").strftime("%B %d, %Y")

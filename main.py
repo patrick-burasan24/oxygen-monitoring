@@ -1,9 +1,16 @@
+import sys
+import os
 import customtkinter as ctk
 from config import get_env, valid_parameter
 from frames import MainMenuFrame, SettingsFrame, MonitorFrame, ReporterFrame
 from database import initialize_db
 
 ctk.set_default_color_theme("dark-blue")
+
+# Forces the working directory to the executable's true physical location
+if getattr(sys, "frozen", False):
+    application_path = os.path.dirname(sys.executable)
+    os.chdir(application_path)
 
 
 class O2DashboardApp(ctk.CTk):
@@ -56,7 +63,10 @@ class O2DashboardApp(ctk.CTk):
 
     def show_popup_error(self, message="Connection failed."):
         """Creates a professional, modal error dialog."""
-        if self.error_active or not self.is_logging:
+        if self.error_active:
+            return
+        
+        if not self.is_logging and self.current_page != "MonitorFrame":
             return
 
         self.error_active = True
@@ -107,15 +117,17 @@ class O2DashboardApp(ctk.CTk):
             self.error_active = False
             popup.destroy()
 
+            if "MainMenuFrame" in self.frames:
+                self.frames["MainMenuFrame"].btn_logger.configure(
+                    text="Start Logging",
+                    fg_color=["#3B8ED0", "#1F6AA5"],
+                    hover_color=["#36719F", "#144870"]
+                )
+        
+            self.show_frame("MainMenuFrame")
+
         popup.protocol("WM_DELETE_WINDOW", close_popup)
         btn_ok.configure(command=close_popup)
-
-        if "MainMenuFrame" in self.frames:
-            self.frames["MainMenuFrame"].btn_logger.configure(
-                text="Start Logging",
-                fg_color=["#3B8ED0", "#1F6AA5"],
-                hover_color=["#36719F", "#144870"]
-            )
         
 if __name__ == "__main__":
     app = O2DashboardApp()

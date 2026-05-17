@@ -16,34 +16,37 @@ class SensorService():
         current_port = None
         
         while True:
-            sensor_ip = get_env("SENSOR_IP", "192.168.0.7")
-            sensor_port = int(get_env("SENSOR_PORT", "502"))
-            device_id = int(get_env("DEVICE_ID", "1"))
+            try:
+                sensor_ip = get_env("SENSOR_IP", "192.168.0.7")
+                sensor_port = int(get_env("SENSOR_PORT", "502"))
+                device_id = int(get_env("DEVICE_ID", "1"))
 
-            if not sensor_ip:
-                print("Error: No IP address was provided for the sensor.")
+                if not sensor_ip:
+                    print("Error: No IP address was provided for the sensor.")
+                    self.data_queue.put({
+                        "status": "error",
+                        "message": "Uninitialized sensor_ip variable."
+                    })
+                    await asyncio.sleep(2)
+                    continue
+
+                register_start_address = get_env("REGISTER_START_ADDRESS")
+                register_count = get_env("REGISTER_COUNT")
+
+                if not register_start_address or not register_count:
+                    raise ValueError("Unconfigured register data.")
+
+                register_start_address = int(register_start_address)
+                register_count = int(register_count)
+            
+            except ValueError: 
                 self.data_queue.put({
                     "status": "error",
-                    "message": "Uninitialized sensor_ip variable."
+                    "message": "Invalid configuration. Make sure Port, Device ID, and Registers are numbers."
                 })
                 await asyncio.sleep(2)
                 continue
-
-            register_start_address = get_env("REGISTER_START_ADDRESS")
-            register_count = get_env("REGISTER_COUNT")
-
-            if not register_start_address or not register_count:
-                print(
-                    "Error: Unconfigured register data. Reading operation cannot commence.")
-                self.data_queue.put({
-                    "status": "error",
-                    "message": "Unconfigured register data. Reading operation cannot commence."
-                })
-                await asyncio.sleep(2)
-                continue
-
-            register_start_address = int(register_start_address)
-            register_count = int(register_count)
+            
 
             if not client or (sensor_ip != current_ip or sensor_port != current_port):
                 if client:
