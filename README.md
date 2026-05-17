@@ -140,7 +140,20 @@ python reporter.py -d 2026-05-07
 
 ## 📦 Compiling to an Executable from Source
 If you wish to compile your own version of the application using PyInstaller, run the following command from the root directory:
+
+**Windows:**:
 ```bash
-pyinstaller --noconsole --onedir --name "O2M" --add-data "templates:templates" --collect-all customtkinter --collect-all reportlab --collect-all xhtml2pdf main.py
+pyinstaller --noconsole --onedir --name "O2M" --icon "o2m-logo.ico" --add-data "templates;templates" --collect-all customtkinter --collect-all reportlab --collect-all xhtml2pdf main.py
 ```
+
+**macOs:**
+```bash
+pyinstaller --noconsole --onedir --name "O2M" --icon "o2m-logo.icns" --add-data "templates:templates" --collect-all customtkinter --collect-all reportlab --collect-all xhtml2pdf main.py
+```
+
+**Linux:**:
+```bash
+
+```
+
 *Don't forget to copy your .env file into the generated dist/O2M/ folder before launching the new binary!*
