@@ -11,6 +11,10 @@ class SensorService():
         self.data_queue = data_queue
 
     async def poll_sensor(self):
+        client = None
+        current_ip = None
+        current_port = None
+        
         while True:
             sensor_ip = get_env("SENSOR_IP", "192.168.0.7")
             sensor_port = int(get_env("SENSOR_PORT", "502"))
@@ -18,14 +22,12 @@ class SensorService():
 
             if not sensor_ip:
                 print("Error: No IP address was provided for the sensor.")
-                return
-
-            client = AsyncModbusTcpClient(
-                host=sensor_ip,
-                port=sensor_port,
-                framer=FramerType.RTU,
-                timeout=2
-            )
+                self.data_queue.put({
+                    "status": "error",
+                    "message": "Uninitialized sensor_ip variable."
+                })
+                await asyncio.sleep(2)
+                continue
 
             register_start_address = get_env("REGISTER_START_ADDRESS")
             register_count = get_env("REGISTER_COUNT")
@@ -37,11 +39,25 @@ class SensorService():
                     "status": "error",
                     "message": "Unconfigured register data. Reading operation cannot commence."
                 })
-                await asyncio.sleep(1)
+                await asyncio.sleep(2)
                 continue
 
             register_start_address = int(register_start_address)
             register_count = int(register_count)
+
+            if not client or (sensor_ip != current_ip or sensor_port != current_port):
+                if client:
+                    client.close()
+                
+                client = AsyncModbusTcpClient(
+                    host=sensor_ip,
+                    port=sensor_port,
+                    framer=FramerType.RTU,
+                    timeout=2
+                )
+
+                current_ip = sensor_ip
+                current_port = sensor_port
 
             try:
                 if not client.connected:
@@ -100,6 +116,7 @@ class SensorService():
                     "status": "error",
                     "message": str(e)
                 })
-                client.close()
+                if client:
+                    client.close()
 
             await asyncio.sleep(1)

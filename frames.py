@@ -27,6 +27,7 @@ def _create_gauge_meter(frame, fg, bg, text_color, scale_text):
         bg=bg,
         text_color=text_color,
         scale_color=scale_text,
+        scroll=False,
     )
 
 
@@ -406,9 +407,16 @@ class MonitorFrame(ctk.CTkFrame):
 
     def update_dashboard(self, o2, temp, press):
         """Receives live data and updates the UI components"""
-        self.o2_gauge.set(o2)
-        self.lbl_temp_val.configure(text=f"{temp:.1f}")
-        self.lbl_press_val.configure(text=f"{press:.0f}")
+        if isinstance(o2, list):
+            o2 = o2[0] if len(o2) > 0 else 0.0
+        if isinstance(temp, list):
+            temp = temp[0] if len(temp) > 0 else 0.0
+        if isinstance(press, list):
+            press = press[0] if len(press) > 0 else 0.0
+        
+        self.o2_gauge.set(float(o2))
+        self.lbl_temp_val.configure(text=f"{float(temp):.1f}")
+        self.lbl_press_val.configure(text=f"{float(press):.0f}")
 
     def simulate_sensor_data(self):
         fake_o2 = random.uniform(18.0, 22.0)
@@ -553,7 +561,7 @@ class ReporterFrame(ctk.CTkFrame):
             return
 
         self.lbl_status.configure(
-            text=f"Pulling data for {selected_date}...", text_color="white")
+            text=f"Pulling data for {selected_date}...", text_color="gray")
 
         threading.Thread(target=self._run_engine, args=(
             selected_date, save_path), daemon=True).start()
