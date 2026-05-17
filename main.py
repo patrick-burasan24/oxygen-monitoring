@@ -42,7 +42,7 @@ class O2DashboardApp(ctk.CTk):
         self.title("Oxygen Monitoring System")
         self.geometry("600x500")
 
-        # Made the applicatio cross-platform
+        # Made the application cross-platform
         if os.path.exists(WINDOW_ICON_PATH):
             if platform.system() == "Windows":
                 import ctypes
