@@ -69,9 +69,17 @@ pip install customtkinter tkdial pymodbus python-dotenv matplotlib xhtml2pdf jin
 ```
 
 ### Configuration (.env)
-The application relies on a `.env` file to persist user settings. You can edit these values directly in the file or via the in-app Settings UI.
+To ensure your data is secure and isn't accidentally overwritten when updating the app, the O2 Dashboard stores its configuration and database in a hidden folder inside your system's Home directory.
 
-*Environment Variables*
+**Default Storing Locations:**
+* **macOS/Linux:** `~/.o2m/`
+* **Windows:** `C:\Users\<YourUsername>\.o2m`
+
+Inside this folder, you will find two critical files:
+* `.env`: Your saved settings, UI preferences, and Modbus memory maps.
+* `sensor_readings.db`: The SQLite database containing all logged historical data.
+
+*Environment Variables (`.env`)*
 * `SENSOR_IP`: The IPv4 address of your Modbus sensor (e.g., `192.128.0.7`).
 * `SENSOR_PORT`: The Modbus TCP port (default is usually `502`).
 * `DEVICE_ID`: The Modbus Slave/Device ID (default is usually `1`).
