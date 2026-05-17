@@ -139,7 +139,7 @@ class SettingsFrame(ctk.CTkFrame):
         )
         self.o2_min_threshold.grid(row=4, column=2, pady=10)
 
-        saved_threshold = float(get_env("O2_MIN_TRESHOLD", "19.5"))
+        saved_threshold = float(get_env("O2_MIN_THRESHOLD", "19.5"))
         self.o2_min_threshold.set(saved_threshold)
         self.lbl_o2_min_threshold.configure(
             text=f"Min O2 Treshold: {saved_threshold:.1f}%")
@@ -249,7 +249,7 @@ class SettingsFrame(ctk.CTkFrame):
         set_env("SENSOR_IP", entry_ip)
         set_env("SENSOR_PORT", entry_port)
         set_env("DEVICE_ID", device_id)
-        set_env("O2_MIN_TRESHOLD", f"{o2_min_threshold}")
+        set_env("O2_MIN_THRESHOLD", f"{o2_min_threshold}")
         set_env("REGISTER_START_ADDRESS", register_start_address)
         set_env("REGISTER_COUNT", register_count)
         self.controller.show_frame("MainMenuFrame")
