@@ -2,6 +2,9 @@
 modbus_env/
 venv/
 env/
+build/
+dist/
+*.spec
 
 *.pdf
 
