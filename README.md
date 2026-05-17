@@ -143,7 +143,7 @@ If you wish to compile your own version of the application using PyInstaller, ru
 
 **Windows:**
 ```bash
-pyinstaller --noconsole --onedir --name "O2M" --icon "o2m-logo.ico" --add-data "templates;templates" --collect-all customtkinter --collect-all reportlab --collect-all xhtml2pdf main.py
+pyinstaller --noconsole --onedir --name "O2M" --icon "o2m-logo.ico" --add-data "o2m-logo.ico;." --add-data "templates;templates" --collect-all customtkinter --collect-all reportlab --collect-all xhtml2pdf main.py
 ```
 
 **macOs:**
