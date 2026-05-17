@@ -31,6 +31,9 @@ class O2DashboardApp(ctk.CTk):
         self.title("Oxygen Monitoring System")
         self.geometry("600x500")
 
+        # Uncomment for Windows
+        # self.iconbitmap("app_icon.ico")
+
         self.current_page = None
         self.frames = {}
         self.is_logging = False
