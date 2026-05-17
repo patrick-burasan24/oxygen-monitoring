@@ -8,16 +8,62 @@ from pathlib import Path
 from xhtml2pdf import pisa
 from dotenv import load_dotenv
 from jinja2 import Environment, FileSystemLoader
+from config import get_env
 
-def generate_daily_report(target_date, output_path):
+
+def generate_daily_report(target_date, save_path=None):
+    """Generates the PDF report for the specified target_date (YYYY-MM-DD)."""
     if not target_date:
-        print("Target date cannot be empty.")
+        print("Error: target_date cannot be empty.")
         return False
 
-    if not output_path:
-        pass
-    
-    pass
+    print(f"Fetching data for {target_date}...")
+
+    db_path = get_env("DATABASE_PATH", "./sensor_readings.db")
+    con = db.initialize_db(db_path)
+
+    daily_stats = db.summary(con, target_date)
+    if not daily_stats:
+        print(f"No data found for {target_date}. Aborting report.")
+        return False
+
+    reports_path = Path("reports")
+    img_path = Path("img")
+    reports_path.mkdir(exist_ok=True)
+    img_path.mkdir(exist_ok=True)
+
+    pdf_filename = f"Sensor_Parameter_Report_{target_date}.pdf"
+
+    target_img_dir = img_path / pdf_filename
+    if target_img_dir.exists():
+        shutil.rmtree(target_img_dir)
+    target_img_dir.mkdir(exist_ok=True)
+
+    visualizer.generate_graph(con, target_date, pdf_filename)
+
+    env = Environment(loader=FileSystemLoader("templates"))
+    template = env.get_template("report.html")
+    display_date = dt.datetime.strptime(
+        target_date, "%Y-%m-%d").strftime("%B %d, %Y")
+
+    html_string = template.render(
+        date_today=display_date,
+        stats=daily_stats,
+        o2_graph_path=f"{target_img_dir}/o2_levels.png",
+        temp_graph_path=f"{target_img_dir}/internal_temperature.png",
+        press_graph_path=f"{target_img_dir}/internal_pressure.png"
+    )
+
+    if not save_path:
+        output_filepath = reports_path / pdf_filename
+    else:
+        output_filepath = Path(save_path)
+    with open(output_filepath, "w+b") as pdf_file:
+        pisa.CreatePDF(html_string, dest=pdf_file)
+
+    print("Report created successfully.")
+    return True
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="O2 Sensor Report Wizard")
@@ -52,18 +98,19 @@ if __name__ == "__main__":
 
     env = Environment(loader=FileSystemLoader("templates"))
     template = env.get_template("report.html")
-    display_date = dt.datetime.strptime(target_date, "%Y-%m-%d").strftime("%B %d, %Y")
+    display_date = dt.datetime.strptime(
+        target_date, "%Y-%m-%d").strftime("%B %d, %Y")
 
     reports_path = Path("reports")
     img_path = Path("img")
     os.makedirs(reports_path, exist_ok=True)
     os.makedirs(img_path, exist_ok=True)
-    
+
     pdf_filename = f"Sensor_Parameter_Report_{target_date}.pdf"
     if os.path.exists(f"{reports_path}/{pdf_filename}/"):
         shutil.rmtree(f"{img_path}/{pdf_filename}/")
     os.makedirs(f"{img_path}/{pdf_filename}/", exist_ok=True)
-    
+
     visualizer.generate_graph(con, target_date, pdf_filename)
 
     html_string = template.render(
@@ -76,5 +123,5 @@ if __name__ == "__main__":
 
     with open(f"{reports_path}/{pdf_filename}", "w+b") as pdf_file:
         pisa.CreatePDF(html_string, dest=pdf_file)
-    
+
     print("Report created successfully. Program has exitted.")

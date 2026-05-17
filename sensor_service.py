@@ -4,6 +4,7 @@ from pymodbus.client import AsyncModbusTcpClient
 from pymodbus.framer import FramerType
 from config import get_env
 
+
 class SensorService():
 
     def __init__(self, data_queue: Queue):
@@ -18,7 +19,7 @@ class SensorService():
             if not sensor_ip:
                 print("Error: No IP address was provided for the sensor.")
                 return
-        
+
             client = AsyncModbusTcpClient(
                 host=sensor_ip,
                 port=sensor_port,
@@ -30,12 +31,13 @@ class SensorService():
             register_count = get_env("REGISTER_COUNT")
 
             if not register_address or not register_count:
-                print("Error: Unconfigured register data. Reading operation cannot commence.")
+                print(
+                    "Error: Unconfigured register data. Reading operation cannot commence.")
                 return
-            
+
             register_address = int(register_address)
             register_count = int(register_count)
-            
+
             try:
                 if not client.connected:
                     await client.connect()
@@ -46,10 +48,15 @@ class SensorService():
                         count=register_count,
                         device_id=device_id
                     )
-                
+
                     if result.isError():
-                        print("Error: An unknown error occured when reading the " \
-                        "holding registers.")
+                        print("Error: An unknown error occured when reading the "
+                              "holding registers.")
+                        self.data_queue.put({
+                            "status": "error",
+                            "message": "Holding registers were corrupted in "
+                            "some way. Please restart the process"
+                        })
                         client.close()
                     else:
                         o2_value = client.convert_from_registers(
@@ -77,8 +84,17 @@ class SensorService():
                         })
                 else:
                     print("Error: Connection failed.")
+                    self.data_queue.put({
+                        "status": "error",
+                        "message": "Live network connection lost."
+                    })
 
             except Exception as e:
                 print(f"Error: {e}")
+                self.data_queue.put({
+                    "status": "error",
+                    "message": str(e)
+                })
+                client.close()
 
             await asyncio.sleep(1)

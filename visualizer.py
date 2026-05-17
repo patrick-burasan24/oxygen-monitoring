@@ -1,5 +1,7 @@
 import database as db
 import datetime as dt
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
