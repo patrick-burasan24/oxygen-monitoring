@@ -141,6 +141,27 @@ python reporter.py -d 2026-05-07
 ## 📦 Compiling to an Executable from Source
 If you wish to compile your own version of the application using PyInstaller, run the following command from the root directory:
 
+### 5. Manual Data Insertion (`database.py`)
+The database script includes a built-in Command Line Interface (CLI) powered by `argparse`. This allows developers to manually inject mock sensor readings directly into the SQLite database without needing physical Modbus hardware. This is highly useful for testing the reporting engine, simulating hypoxic events, or generating historical graphs.
+
+**Basic Usage:**
+If you run the script without a date or time, it will automatically use the current system timestamp.
+```bash
+python database.py -o 19.4 -t 25.5 -p 1012
+```
+**Advanced Usage (Simulating Past Events):**
+```bash
+python database.py -o 18.1 -t 24.0 -p 998 -d 2026-05-07 -c 14:30:00
+```
+**Available Arguments:**
+| Flag | Long Flag | Type | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `-o` | `--oxygen` | `float` | `20.00` | Oxygen concentration (e.g., `20.9`, `19.5`). |
+| `-t` | `--temp` | `float` | `30.0` | Internal sensor temperature in °C. |
+| `-p` | `--press` | `float` | `1000` | Internal barometric pressure in mbar. |
+| `-d` | `--date` | `string`| `Current Date` | Target date in `YYYY-MM-DD` format. |
+| `-c` | `--time` | `string`| `Current Time` | Target time in `HH:MM:SS` format. |
+
 **Windows:**
 ```bash
 pyinstaller --noconsole --onedir --name "O2M" --icon "o2m-logo.ico" --add-data "o2m-logo.ico;." --add-data "templates;templates" --collect-all customtkinter --collect-all reportlab --collect-all xhtml2pdf main.py
@@ -156,4 +177,4 @@ pyinstaller --noconsole --onedir --name "O2M" --icon "o2m-logo.icns" --add-data 
 
 ```
 
-*Don't forget to copy your .env file into the generated dist/O2M/ folder before launching the new binary!*
+*Don't forget to copy your `.env` file into the generated dist/O2M/ folder before launching the new binary!*
