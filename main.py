@@ -52,10 +52,12 @@ class O2DashboardApp(ctk.CTk):
                 self.iconbitmap(WINDOW_ICON_PATH)
             elif platform.system() == "Linux":
                 try:
-                    icon_img = ctk.PhotoImage(file=WINDOW_ICON_PATH.replace(".ico", ".png"))
+                    self.wm_class("o2m")
+                    linux_icon_path = WINDOW_ICON_PATH.replace(".ico", ".png")
+                    icon_img = ctk.PhotoImage(file=linux_icon_path)
                     self.iconphoto(True, icon_img)
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"Linux Icon Error: {e}")
 
         self.current_page = None
         self.frames = {}
