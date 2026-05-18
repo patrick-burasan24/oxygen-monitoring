@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv, set_key
+import re
 
 APP_DIR = Path.home() / ".o2m"
 
@@ -22,3 +23,19 @@ def set_env(key: str, value: str):
 def valid_parameter(parameter: str):
     """Check if given parameter (which by default is a str) is not null."""
     return parameter and parameter != "" and parameter.strip() != ""
+
+def valid_date_format(date: str):
+    """Check using REGEX the project default YYYY-MM-DD date format."""
+    pattern = r"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$"
+
+    if re.match(pattern=pattern, string=date):
+        return True
+    return False
+
+def valid_time_format(time: str):
+    """Check using REGEX the project default HH:MM:SS time format."""
+    pattern = r"^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$"
+
+    if re.match(pattern=pattern, string=time):
+        return True
+    return False
