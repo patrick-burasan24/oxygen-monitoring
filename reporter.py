@@ -9,7 +9,8 @@ from pathlib import Path
 from xhtml2pdf import pisa
 from dotenv import load_dotenv
 from jinja2 import Environment, FileSystemLoader
-from config import get_env
+from config import get_env, valid_date_format
+
 
 def get_resource_path(relative_path):
     """Get the absolute path to a resource, works for dev and PyInstaller."""
@@ -19,15 +20,21 @@ def get_resource_path(relative_path):
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
+
 def generate_daily_report(target_date, save_path=None):
     """Generates the PDF report for the specified target_date (YYYY-MM-DD)."""
     if not target_date:
         print("Error: target_date cannot be empty.")
         return False
 
+    if not valid_date_format(target_date):
+        print(
+            f"Error: {target_date} does not conform to the YYYY-MM-DD date format. Exitting here.")
+
     print(f"Fetching data for {target_date}...")
 
     db_path = get_env("DATABASE_PATH", "./sensor_readings.db")
+    o2_min_threshold = float(get_env("O2_MIN_THRESHOLD", "19.5"))
     con = db.initialize_db(db_path)
 
     daily_stats = db.summary(con, target_date)
@@ -60,7 +67,8 @@ def generate_daily_report(target_date, save_path=None):
         stats=daily_stats,
         o2_graph_path=f"{target_img_dir}/o2_levels.png",
         temp_graph_path=f"{target_img_dir}/internal_temperature.png",
-        press_graph_path=f"{target_img_dir}/internal_pressure.png"
+        press_graph_path=f"{target_img_dir}/internal_pressure.png",
+        o2_min_threshold=o2_min_threshold,
     )
 
     if not save_path:
@@ -86,51 +94,11 @@ if __name__ == "__main__":
 
     if args.date:
         target_date = args.date.strip()
+        if not valid_date_format(target_date):
+            print(
+                f"{target_date} does not conform to the YYYY-MM-DD date format. Exitting here.")
+            exit(1)
     else:
         target_date = dt.datetime.today().strftime("%Y-%m-%d")
 
-    print(f"Fetching data for {target_date}...")
-
-    env_path = Path(".env")
-    load_dotenv(env_path)
-    DATABASE_PATH = os.getenv("DATABASE_PATH")
-    if DATABASE_PATH is None:
-        print("Couldn't find database path. Exiting here.")
-        exit(1)
-
-    con = db.initialize_db(DATABASE_PATH)
-    daily_stats = db.summary(con, target_date)
-
-    if daily_stats is None:
-        print(f"No data found for {target_date}. Aborting report.")
-        exit(0)
-
-    env = Environment(loader=FileSystemLoader("templates"))
-    template = env.get_template("report.html")
-    display_date = dt.datetime.strptime(
-        target_date, "%Y-%m-%d").strftime("%B %d, %Y")
-
-    reports_path = Path("reports")
-    img_path = Path("img")
-    os.makedirs(reports_path, exist_ok=True)
-    os.makedirs(img_path, exist_ok=True)
-
-    pdf_filename = f"Sensor_Parameter_Report_{target_date}.pdf"
-    if os.path.exists(f"{reports_path}/{pdf_filename}/"):
-        shutil.rmtree(f"{img_path}/{pdf_filename}/")
-    os.makedirs(f"{img_path}/{pdf_filename}/", exist_ok=True)
-
-    visualizer.generate_graph(con, target_date, pdf_filename)
-
-    html_string = template.render(
-        date_today=display_date,
-        stats=daily_stats,
-        o2_graph_path=f"{img_path}/{pdf_filename}/o2_levels.png",
-        temp_graph_path=f"{img_path}/{pdf_filename}/internal_temperature.png",
-        press_graph_path=f"{img_path}/{pdf_filename}/internal_pressure.png",
-    )
-
-    with open(f"{reports_path}/{pdf_filename}", "w+b") as pdf_file:
-        pisa.CreatePDF(html_string, dest=pdf_file)
-
-    print("Report created successfully. Program has exitted.")
+    generate_daily_report(target_date)

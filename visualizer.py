@@ -47,7 +47,13 @@ def generate_graph(con, target_date, pdf_filename):
     pressures = []
 
     for (timestamp, o2, temp, press) in daily_timeseries:
-        timestamps.append(dt.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S"))
+        try:
+            parsed_time = dt.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            # We assume midnight as default value
+            parsed_time = dt.datetime.strptime(timestamp, "%Y-%m-%d")
+
+        timestamps.append(parsed_time)
         o2_levels.append(o2)
         temperatures.append(temp)
         pressures.append(press)
