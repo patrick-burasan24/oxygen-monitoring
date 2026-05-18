@@ -14,6 +14,15 @@ If you just want to run the O2 Dashboard without installing Python or messing wi
 
 *Note: Ensure your `.env` configuration file is placed in the same folder as the executable before launching!*
 
+### 🐧 Linux Installation
+
+1. Download and extract the `O2M_Linux_vX.X.zip` file.
+2. Open your terminal and navigate to the extracted folder.
+3. Run the installer script to register the app with your system:
+   ```bash
+   chmod +x install.sh
+   ./install.sh
+
 ---
 
 ## 🌟 Key Features
@@ -47,6 +56,24 @@ If you are building on a Mac, we strictly enforce **Python 3.12**. You also need
 Open your terminal and run:
 ```bash
 brew install cairo pkg-config python-tk@3.12
+```
+### 🐧 Linux Specific Prerequisites
+Unlike Windows, many Linux distributions do not bundle `tkinter` with their default Python installations. You will need to install the system-level package using your distribution's package manager before setting up your virtual environment.
+
+**For Ubuntu / Debian / Kali:**:
+```bash
+sudo apt-get update
+sudo apt-get install python3-tk
+```
+
+**For Arch Linux:**
+```bash
+sudo pacman -S tk
+```
+
+**For Fedora / RHEL:**
+```bash
+sudo dnf install python3-tkinter
 ```
 
 **1. Create the virtual environment:**
@@ -174,7 +201,7 @@ pyinstaller --noconsole --onedir --name "O2M" --icon "o2m-logo.icns" --add-data 
 
 **Linux:**
 ```bash
-
+pyinstaller --noconsole --onedir --name "O2M" --icon "o2m-logo.png" --add-data "o2m-logo.png:." --add-data "templates:templates" --collect-all customtkinter --collect-all reportlab --collect-all xhtml2pdf main.py
 ```
 
 *Don't forget to copy your `.env` file into the generated dist/O2M/ folder before launching the new binary!*
