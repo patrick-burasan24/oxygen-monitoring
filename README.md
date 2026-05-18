@@ -60,7 +60,7 @@ brew install cairo pkg-config python-tk@3.12
 ### 🐧 Linux Specific Prerequisites
 Unlike Windows, many Linux distributions do not bundle `tkinter` with their default Python installations. You will need to install the system-level package using your distribution's package manager before setting up your virtual environment.
 
-**For Ubuntu / Debian / Kali:**:
+**For Ubuntu / Debian / Kali:**
 ```bash
 sudo apt-get update
 sudo apt-get install python3-tk
