@@ -5,7 +5,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
-def plot_parameter(parameter, timestamps, color, label, pdf_filename, name):
+def plot_parameter(parameter, timestamps, color, label, target_img_dir, name):
     start_time = timestamps[0]
     end_time = timestamps[-1]
     start_num = mdates.date2num(start_time)
@@ -26,10 +26,10 @@ def plot_parameter(parameter, timestamps, color, label, pdf_filename, name):
     ax.plot(timestamps, parameter, color=color, linewidth=2, label=label)
     plt.xticks(rotation=45)
     fig.tight_layout()
-    plt.savefig(f"./img/{pdf_filename}/{name}.png")
+    plt.savefig(target_img_dir / name)
     plt.close(fig)
 
-def generate_graph(con, target_date, pdf_filename):
+def generate_graph(con, target_date, target_img_dir):
     if con is None:
         return
     
@@ -61,9 +61,9 @@ def generate_graph(con, target_date, pdf_filename):
     if len(timestamps) == 0:
         return
 
-    plot_parameter(o2_levels, timestamps, "red", "O_2%", pdf_filename, "o2_levels")
-    plot_parameter(temperatures, timestamps, "blue", "T", pdf_filename, "internal_temperature")
-    plot_parameter(pressures, timestamps, "green", "P", pdf_filename, "internal_pressure")
+    plot_parameter(o2_levels, timestamps, "red", "O_2%", target_img_dir, "o2_levels.png")
+    plot_parameter(temperatures, timestamps, "blue", "T", target_img_dir, "internal_temperature.png")
+    plot_parameter(pressures, timestamps, "green", "P", target_img_dir, "internal_pressure.png")
         
 if __name__ == "__main__":
     fig, ax = plt.subplots(figsize=(10, 5))

@@ -24,6 +24,7 @@ WINDOW_ICON_PATH = os.path.join(asset_base_path, "o2m-logo.ico")
 # -----------------------------------------------------------------------------
 
 import customtkinter as ctk
+import tkinter as tk
 from config import get_env, valid_parameter
 from frames import MainMenuFrame, SettingsFrame, MonitorFrame, ReporterFrame
 from database import initialize_db
@@ -34,7 +35,7 @@ ctk.set_default_color_theme("dark-blue")
 class O2DashboardApp(ctk.CTk):
 
     def __init__(self):
-        super().__init__()
+        super().__init__(className="O2M")
 
         theme_preference = get_env("THEME_PREFERENCE", "System")
         ctk.set_appearance_mode(theme_preference)
@@ -52,9 +53,8 @@ class O2DashboardApp(ctk.CTk):
                 self.iconbitmap(WINDOW_ICON_PATH)
             elif platform.system() == "Linux":
                 try:
-                    self.wm_class("o2m")
                     linux_icon_path = WINDOW_ICON_PATH.replace(".ico", ".png")
-                    icon_img = ctk.PhotoImage(file=linux_icon_path)
+                    icon_img = tk.PhotoImage(file=linux_icon_path)
                     self.iconphoto(True, icon_img)
                 except Exception as e:
                     print(f"Linux Icon Error: {e}")

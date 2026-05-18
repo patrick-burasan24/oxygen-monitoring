@@ -54,7 +54,7 @@ def generate_daily_report(target_date, save_path=None):
         shutil.rmtree(target_img_dir)
     target_img_dir.mkdir(exist_ok=True)
 
-    visualizer.generate_graph(con, target_date, pdf_filename)
+    visualizer.generate_graph(con, target_date, target_img_dir)
 
     template_dir = get_resource_path("templates")
     env = Environment(loader=FileSystemLoader(template_dir))
@@ -65,9 +65,9 @@ def generate_daily_report(target_date, save_path=None):
     html_string = template.render(
         date_today=display_date,
         stats=daily_stats,
-        o2_graph_path=f"{target_img_dir}/o2_levels.png",
-        temp_graph_path=f"{target_img_dir}/internal_temperature.png",
-        press_graph_path=f"{target_img_dir}/internal_pressure.png",
+        o2_graph_path=str((target_img_dir / "o2_levels.png").absolute()),
+        temp_graph_path=str((target_img_dir / "internal_temperature.png").absolute()),
+        press_graph_path=str((target_img_dir / "internal_pressure.png").absolute()),
         o2_min_threshold=o2_min_threshold,
     )
 
